@@ -66,7 +66,3 @@ export function useProject(): ProjectState | null {
 export function useHydrated(): boolean {
   return useSyncExternalStore(subscribe, isHydrated, () => false);
 }
-
-if (typeof window !== "undefined") {
-  (window as unknown as Record<string, unknown>)["__chorus"] = { getProject };
-}
