@@ -8,6 +8,23 @@ import { SUPPORTING_ID, type CharacterProfile, type ProjectState, type Segment }
 
 const CHUNK_SIZE = 24;
 
+/** Guard against a stalled request that never settles. */
+function withTimeout<T>(promise: Promise<T>, ms: number, label: string): Promise<T> {
+  return new Promise<T>((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`TIMEOUT: ${label}`)), ms);
+    promise.then(
+      (v) => {
+        clearTimeout(timer);
+        resolve(v);
+      },
+      (e) => {
+        clearTimeout(timer);
+        reject(e);
+      },
+    );
+  });
+}
+
 function normName(s: string): string {
   return s.toLowerCase().replace(/^(the|dr|mr|mrs|ms|miss|lord|lady|sir|captain)\.?\s+/i, "").trim();
 }
@@ -48,17 +65,21 @@ export async function runAnalysis(
     let result: Awaited<ReturnType<typeof analyzeChunk>> | null = null;
     for (let attempt = 0; attempt < 4; attempt++) {
       try {
-        result = await analyzeChunk({
-          data: {
-            lines,
-            roster: [...roster.values()].slice(0, 40),
-            title: project.fileName,
-          },
-        });
+        result = await withTimeout(
+          analyzeChunk({
+            data: {
+              lines,
+              roster: [...roster.values()].slice(0, 40),
+              title: project.fileName,
+            },
+          }),
+          90_000,
+          "speaker analysis",
+        );
         break;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        if (msg.includes("RATE_LIMIT") && attempt < 3) {
+        if ((msg.includes("RATE_LIMIT") || msg.includes("TIMEOUT")) && attempt < 3) {
           await new Promise((r) => setTimeout(r, 1500 * (attempt + 1)));
           continue;
         }
@@ -323,14 +344,18 @@ async function synthOne(item: GenerationPlanItem): Promise<Int16Array> {
     let audio: string | null = null;
     for (let attempt = 0; attempt < 4; attempt++) {
       try {
-        const res = await synthesizeClip({
-          data: { text: piece, voice: item.voice, instructions: item.instructions, speed: 1 },
-        });
+        const res = await withTimeout(
+          synthesizeClip({
+            data: { text: piece, voice: item.voice, instructions: item.instructions, speed: 1 },
+          }),
+          120_000,
+          "narration clip",
+        );
         audio = res.audio;
         break;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        if (msg.includes("RATE_LIMIT") && attempt < 3) {
+        if ((msg.includes("RATE_LIMIT") || msg.includes("TIMEOUT")) && attempt < 3) {
           await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
           continue;
         }
