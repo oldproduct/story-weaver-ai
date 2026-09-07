@@ -55,7 +55,7 @@ export function buildSegments(chapters: Chapter[]): Segment[] {
     for (const paragraph of chapter.paragraphs) {
       for (const span of splitParagraph(paragraph)) {
         const text = span.kind === "narration" ? tidyNarration(span.text) : span.text.trim();
-        if (!text || !/[A-Za-z0-9]/.test(text)) continue;
+        if (!text || !/[\p{L}\p{N}]/u.test(text)) continue;
         segments.push({
           id: uid("seg"),
           chapterId: chapter.id,

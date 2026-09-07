@@ -1,6 +1,7 @@
 import { get, set, del } from "idb-keyval";
 import { useSyncExternalStore } from "react";
 import type { CharacterProfile, ProjectState, Segment } from "./types";
+import { VOICES } from "./voices";
 
 const KEY = "audiobook-project";
 
@@ -33,10 +34,21 @@ export function isHydrated(): boolean {
 export async function hydrate(): Promise<void> {
   if (hydrated) return;
   const saved = await get<ProjectState>(KEY);
-  if (saved) state = saved;
+  if (saved) state = migrate(saved);
   hydrated = true;
   emit();
 }
+
+/** Older sessions stored voice ids from the previous engine — drop them. */
+function migrate(p: ProjectState): ProjectState {
+  const valid = new Set(VOICES.map((v) => v.id));
+  const characters = p.characters.map((c) =>
+    c.voiceId && !valid.has(c.voiceId) ? { ...c, voiceId: null } : c,
+  );
+  const sharedVoiceId = p.sharedVoiceId && valid.has(p.sharedVoiceId) ? p.sharedVoiceId : null;
+  return { ...p, characters, sharedVoiceId };
+}
+
 
 export function setProject(next: ProjectState | null) {
   state = next;

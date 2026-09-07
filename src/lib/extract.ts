@@ -51,7 +51,7 @@ export async function extractText(file: File): Promise<string> {
 }
 
 const CHAPTER_RE =
-  /^\s*(chapter|chap\.?|part|book|section|prologue|epilogue|interlude)\b[^.!?]{0,60}$/i;
+  /^\s*(?:(?:chapter|chap\.?|part|book|section|prologue|epilogue|interlude)\b|अध्याय|भाग|खंड|परिच्छेद)[^.!?।]{0,60}$/i;
 const ROMAN_RE = /^\s*(?:[IVXLC]+|\d{1,3})\s*[.)]?\s*$/;
 
 function looksLikeHeading(line: string): boolean {
@@ -61,6 +61,7 @@ function looksLikeHeading(line: string): boolean {
   if (ROMAN_RE.test(t)) return true;
   // Short all-caps line with no terminal punctuation.
   if (t.length < 60 && t === t.toUpperCase() && /[A-Z]/.test(t) && !/[.!?]$/.test(t)) return true;
+  if (t.length < 40 && /^(अध्याय|भाग|खंड|परिच्छेद)/.test(t)) return true;
   return false;
 }
 

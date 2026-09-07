@@ -25,7 +25,7 @@ export function UploadStep({ onReady }: { onReady: () => void }) {
     setBusy(true);
     try {
       const raw = await extractText(file);
-      if (raw.replace(/\s/g, "").length < 200) {
+      if (raw.replace(/\s/g, "").length < 60) {
         throw new Error("That file has almost no readable text. Scanned PDFs aren't supported yet.");
       }
       const chapters = buildChapters(raw);
