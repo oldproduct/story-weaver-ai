@@ -105,7 +105,7 @@ export function CastStep({ project, onDone }: { project: ProjectState; onDone: (
             onDone();
           }}
         >
-          Generate narration
+          Review lines
         </Button>
       </div>
 

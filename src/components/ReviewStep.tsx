@@ -12,7 +12,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { refineLines } from "@/lib/ai.functions";
-import { alternationFill, isSettled, recountCharacters } from "@/lib/pipeline";
+import { alternationFill, assignSuggestedVoices, isSettled, recountCharacters } from "@/lib/pipeline";
 import { updateProject } from "@/lib/store";
 import { uid } from "@/lib/id";
 import { cn } from "@/lib/utils";
@@ -113,6 +113,8 @@ export function ReviewStep({
         idSet.has(s.id) ? { ...s, speakerId: character.id, confidence: 1, manual: true } : s,
       );
       const characters = recountCharacters(segments, [...p.characters, character]);
+      // A brand-new speaker needs a voice or its lines would be skipped at generation.
+      assignSuggestedVoices(characters);
       return { ...p, segments, characters };
     });
     toast.success(`${name} added — pick a voice on the Cast screen.`);
