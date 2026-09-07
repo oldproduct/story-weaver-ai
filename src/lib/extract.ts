@@ -75,6 +75,19 @@ function cleanText(raw: string): string {
     .trim();
 }
 
+const SCRIPT_LINE_RE = /^\s*[\p{Lu}\p{Lo}][\p{L}\p{M}\p{N}.'\- ]{0,38}?\s*(?::|\u2014|\u2013|--)\s+\S/u;
+
+/** Verse and screenplay blocks must keep one line per line, not be merged into a paragraph. */
+function looksLikeVerseOrScript(lines: string[]): boolean {
+  const real = lines.map((l) => l.trim()).filter(Boolean);
+  if (real.length < 2) return false;
+  const scripted = real.filter((l) => SCRIPT_LINE_RE.test(l)).length;
+  if (scripted >= Math.max(2, real.length * 0.4)) return true;
+  const short = real.filter((l) => l.length <= 70).length;
+  const unterminated = real.filter((l) => !/[.!?\u0964"\u201d]$/.test(l)).length;
+  return short >= real.length * 0.8 && unterminated >= real.length * 0.6;
+}
+
 function countWords(s: string): number {
   return (s.match(/\S+/g) ?? []).length;
 }
@@ -108,6 +121,14 @@ export function buildChapters(raw: string): Chapter[] {
       continue;
     }
     if (!current) current = { title: "Opening", paragraphs: [] };
+    if (looksLikeVerseOrScript(lines)) {
+      // Poems and scripts lose their meaning when wrapped lines are merged.
+      for (const line of lines) {
+        const t = line.replace(/\s+/g, " ").trim();
+        if (t) current.paragraphs.push(t);
+      }
+      continue;
+    }
     // Re-join wrapped lines inside a paragraph block.
     const para = lines.join(" ").replace(/\s+/g, " ").trim();
     if (para) current.paragraphs.push(para);

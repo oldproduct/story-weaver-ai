@@ -49,18 +49,26 @@ export async function runAnalysis(
   shouldStop: () => boolean,
 ): Promise<{ segments: Segment[]; characters: CharacterProfile[] }> {
   const dialogue = project.segments.filter((s) => s.kind === "dialogue");
+  // Poems, songs and plain prose carry no quoted dialogue — let the AI cast the passages.
+  const passageMode = dialogue.length < 3;
+  const targets = passageMode ? project.segments : dialogue;
   const roster = new Map<string, RosterEntry>();
   const assignments = new Map<string, { speaker: string; confidence: number }>();
 
   const chunks: Segment[][] = [];
-  for (let i = 0; i < dialogue.length; i += CHUNK_SIZE) {
-    chunks.push(dialogue.slice(i, i + CHUNK_SIZE));
+  for (let i = 0; i < targets.length; i += CHUNK_SIZE) {
+    chunks.push(targets.slice(i, i + CHUNK_SIZE));
   }
 
   let done = 0;
   for (const chunk of chunks) {
     if (shouldStop()) break;
-    const lines = chunk.map((s, idx) => ({ i: idx, text: s.text, context: s.context }));
+    const lines = chunk.map((s, idx) => ({
+      i: idx,
+      text: s.text,
+      context: s.context,
+      ...(s.hint ? { hint: s.hint } : {}),
+    }));
 
     let result: Awaited<ReturnType<typeof analyzeChunk>> | null = null;
     for (let attempt = 0; attempt < 4; attempt++) {
@@ -71,6 +79,7 @@ export async function runAnalysis(
               lines,
               roster: [...roster.values()].slice(0, 40),
               title: project.fileName,
+              mode: passageMode ? "passage" : "dialogue",
             },
           }),
           90_000,
@@ -115,7 +124,7 @@ export async function runAnalysis(
     done += chunk.length;
     onProgress({
       done,
-      total: dialogue.length,
+      total: targets.length,
       charactersFound: new Set([...roster.values()].map((r) => r.name)).size,
     });
   }
@@ -185,13 +194,14 @@ export async function runAnalysis(
   const chapterIndex = new Map(project.chapters.map((c) => [c.id, c.index]));
 
   const segments = project.segments.map((seg) => {
-    if (seg.kind === "narration") {
+    const a = assignments.get(seg.id);
+    const named = a && normName(a.speaker) !== "narrator" ? byLookup.get(normName(a.speaker)) : undefined;
+    if (seg.kind === "narration" && !named) {
       narrator.lineCount += 1;
       narrator.wordCount += (seg.text.match(/\S+/g) ?? []).length;
       return { ...seg, speakerId: "narrator", confidence: 1 };
     }
-    const a = assignments.get(seg.id);
-    const profile = a ? byLookup.get(normName(a.speaker)) : undefined;
+    const profile = named;
     const target = profile ?? unknown;
     target.lineCount += 1;
     target.wordCount += (seg.text.match(/\S+/g) ?? []).length;

@@ -76,11 +76,11 @@ export function CastStep({ project, onDone }: { project: ProjectState; onDone: (
 
   const preview = (voice: string | null, text: string) => {
     if (!voice) {
-      toast.error("Pehle ek voice chuniye.");
+      toast.error("Pick a voice first.");
       return;
     }
     toast.promise(playSample(text, voice), {
-      loading: "Preview ban rahi hai…",
+      loading: "Preparing preview…",
       success: "Playing",
       error: (e) => (e instanceof Error ? e.message : "Preview failed"),
     });

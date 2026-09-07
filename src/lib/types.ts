@@ -14,6 +14,8 @@ export interface Segment {
   confidence: number;
   /** Raw speaker name returned by the AI, before alias merging. */
   rawSpeaker?: string;
+  /** Speaker name detected from the text itself (script format "NAME: line"). */
+  hint?: string;
 }
 
 export interface Chapter {
