@@ -378,6 +378,8 @@ async function synthOne(item: GenerationPlanItem): Promise<Int16Array> {
           await new Promise((r) => setTimeout(r, backoff));
           continue;
         }
+        if (msg.includes("RATE_LIMIT"))
+          throw new Error("The voice engine is busy right now. Wait a moment and press Generate again.");
         throw err;
       }
     }
