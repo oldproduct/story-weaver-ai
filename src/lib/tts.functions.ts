@@ -43,7 +43,12 @@ export const synthesizeClip = createServerFn({ method: "POST" })
 
     if (!res.ok) {
       const body = await res.text().catch(() => "");
-      if (res.status === 429) throw new Error("RATE_LIMIT: voice engine is busy, slowing down.");
+      if (res.status === 429 || res.status === 529) {
+        const retryAfter = Number(res.headers.get("retry-after") ?? "0");
+        throw new Error(
+          `RATE_LIMIT:${Number.isFinite(retryAfter) ? retryAfter : 0}: voice engine is busy, slowing down.`,
+        );
+      }
       if (res.status === 401 || res.status === 403)
         throw new Error("The ElevenLabs key was rejected — reconnect it and try again.");
       throw new Error(`Narration failed [${res.status}]: ${body.slice(0, 300)}`);
