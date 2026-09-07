@@ -6,22 +6,24 @@ export interface VoiceOption {
 }
 
 /**
- * Voice catalogue for the narration engine. The engine is pluggable — these ids
- * map to the current TTS provider handled server-side in tts.functions.ts.
+ * ElevenLabs multilingual voices that handle Hindi / Hinglish well.
+ * Ids are ElevenLabs voice ids used directly by tts.functions.ts.
  */
 export const VOICES: VoiceOption[] = [
-  { id: "alloy", label: "Alloy", gender: "neutral", blurb: "Even, unhurried, dependable narrator" },
-  { id: "ash", label: "Ash", gender: "male", blurb: "Dry, gravelly, world-weary" },
-  { id: "ballad", label: "Ballad", gender: "male", blurb: "Warm storyteller with lift" },
-  { id: "coral", label: "Coral", gender: "female", blurb: "Bright, quick, expressive" },
-  { id: "echo", label: "Echo", gender: "male", blurb: "Low, measured, grounded" },
-  { id: "fable", label: "Fable", gender: "neutral", blurb: "Theatrical, folk-tale cadence" },
-  { id: "nova", label: "Nova", gender: "female", blurb: "Clear, modern, confident" },
-  { id: "onyx", label: "Onyx", gender: "male", blurb: "Deep, resonant, authoritative" },
-  { id: "sage", label: "Sage", gender: "female", blurb: "Calm, thoughtful, older" },
-  { id: "shimmer", label: "Shimmer", gender: "female", blurb: "Soft, airy, youthful" },
-  { id: "verse", label: "Verse", gender: "male", blurb: "Youthful, restless, earnest" },
+  { id: "JBFqnCBsd6RMkjVDRZzb", label: "Arjun", gender: "male", blurb: "Warm, steady kathavachak" },
+  { id: "nPczCjzI2devNBz1zQrb", label: "Vikram", gender: "male", blurb: "Deep, authoritative" },
+  { id: "TX3LPaxmHKxFdv7VOQHJ", label: "Rohan", gender: "male", blurb: "Youthful, energetic" },
+  { id: "onwK4e9ZLuTAKqWW03F9", label: "Devendra", gender: "male", blurb: "Calm, mature elder" },
+  { id: "EXAVITQu4vr4xnSDxMaL", label: "Meera", gender: "female", blurb: "Soft, expressive narrator" },
+  { id: "Xb7hH8MSUJpSbSDYk0k2", label: "Anaya", gender: "female", blurb: "Bright, clear, modern" },
+  { id: "XrExE9yKIg1WjnnlVkGX", label: "Kavita", gender: "female", blurb: "Gentle, storytelling warmth" },
+  { id: "cgSgspJ2msm6clMCkdW9", label: "Priya", gender: "female", blurb: "Youthful, conversational" },
+  { id: "SAz9YHcvj6GT2YYXdXww", label: "Sur", gender: "neutral", blurb: "Even, neutral — good shared voice" },
 ];
+
+/** Sample line spoken when previewing a voice. */
+export const HINDI_SAMPLE =
+  "नमस्ते, यह मेरी आवाज़ का नमूना है। कहानी अब शुरू होती है।";
 
 export function voiceLabel(id: string | null): string {
   if (!id) return "Unassigned";
@@ -47,5 +49,5 @@ export function suggestVoice(
     const free = pool.find((id) => !used.has(id));
     if (free) return free;
   }
-  return "alloy";
+  return VOICES[0]!.id;
 }

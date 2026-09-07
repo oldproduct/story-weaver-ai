@@ -2,6 +2,7 @@ import { base64ToPcm, pcmToWavBlob } from "./audio";
 import { getClip, putClip } from "./clip-cache";
 import { hashKey } from "./id";
 import { synthesizeClip } from "./tts.functions";
+import { HINDI_SAMPLE } from "./voices";
 
 let current: HTMLAudioElement | null = null;
 
@@ -13,7 +14,7 @@ export function stopPreview() {
 }
 
 export async function playSample(text: string, voice: string, instructions = ""): Promise<void> {
-  const trimmed = text.slice(0, 240);
+  const trimmed = (text.trim() || HINDI_SAMPLE).slice(0, 240);
   const key = `preview-${hashKey(trimmed, voice, instructions)}`;
   let pcm = await getClip(key);
   if (!pcm) {
