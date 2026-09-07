@@ -1,29 +1,29 @@
-# Switch narration to ElevenLabs with Hindi-first voices
+# Minimal Hindi narration with ElevenLabs
+
+Keep it simple: upload a file, let the AI read it, pick a handful of voices, and ElevenLabs does the rest.
 
 ## Security note first
-The key you pasted is now visible in the chat history. Please rotate it in your ElevenLabs account and use the secure key form I'll open during the build — keys typed in chat are not stored safely and I won't put it in the code.
+The key you pasted is now in the chat history — please rotate it in your ElevenLabs account. During the build I'll open a secure form for the new key; it never goes into the code.
 
-## What changes for you
-- Narration is produced by ElevenLabs instead of the built-in voice engine.
-- The voice list becomes Hindi-first: multilingual voices that read Devanagari and Hinglish naturally, each with a short description and a preview button that speaks a Hindi sample line.
-- Everything else in the flow stays the same: upload, speaker detection, casting, generation, chapter playback, MP3 export, and re-recording only the clips you change.
+## The flow (4 screens, nothing more)
+1. **Upload** — drop a PDF, DOCX or TXT. Text is extracted and shown briefly.
+2. **Analyze** — the AI reads it and lists the narrator plus the characters who actually speak.
+3. **Speakers** — a compact list of 5 slots by default (Narrator + 4 characters), each with a Hindi voice dropdown and a play button for a Hindi sample. A "+" button adds another speaker slot; extra characters can be pointed at a shared voice.
+4. **Listen / Download** — narration is generated and playable, with an MP3 download.
 
-## Voice set
-Curated ElevenLabs multilingual voices suited to Hindi narration, grouped by male / female / neutral so the automatic casting still picks distinct voices per character:
-- Warm male narrator, deep male, youthful male
-- Calm female narrator, bright female, older female
-- Plus a neutral option for the shared supporting-role voice
-Voice previews use a Hindi sample sentence so you can judge pronunciation before casting.
+Dropped from the current build to keep it basic: merge/split character tools, alias editing, low-confidence review panel, per-character instruction boxes, and chapter-by-chapter playback controls. Chapters still keep the audio in the right order internally.
+
+## Voices
+Hindi-first list of ElevenLabs multilingual voices (a few male, a few female, one neutral for shared/minor roles), each with a short label and a Hindi preview line so pronunciation is easy to judge before choosing.
 
 ## Technical changes
-- Link the ElevenLabs connector so the key lives in the secure store; server code reads `ELEVENLABS_API_KEY`.
-- Rewrite `src/lib/tts.functions.ts` to POST to `https://api.elevenlabs.io/v1/text-to-speech/{voiceId}?output_format=pcm_24000` with `xi-api-key`, model `eleven_multilingual_v2`, and voice settings (stability 0.5, similarity 0.75, speaker boost). Return base64 PCM exactly as today, so `audio.ts`, `clip-cache.ts`, stitching, pauses, normalization and MP3 export are untouched.
-- Map the existing `instructions` field onto ElevenLabs' controls: prosody hints are folded into voice settings (character voices get lower stability / higher style), since ElevenLabs has no free-text instruction parameter.
-- Add request stitching: pass `previous_text` / `next_text` for adjacent spans of the same speaker so long passages keep consistent prosody.
-- Replace the catalogue in `src/lib/voices.ts` with ElevenLabs voice IDs plus a `hindiSample` line used by the preview player; keep the `suggestVoice` gender-pool logic intact.
-- `src/lib/preview.ts`: preview uses the Hindi sample when the picked text is empty.
-- Error handling: surface ElevenLabs status + body; treat 429 as `RATE_LIMIT` so the existing backoff in `pipeline.ts` keeps working; 401 gives a clear "key needs reconnecting" message.
-- Keep clip cache keys as `hash(text, voiceId, instructions)` — switching a character's voice re-records only that character.
+- Link the ElevenLabs connector; server code reads `ELEVENLABS_API_KEY`.
+- Rewrite `src/lib/tts.functions.ts` to call `https://api.elevenlabs.io/v1/text-to-speech/{voiceId}?output_format=pcm_24000` with the `xi-api-key` header, model `eleven_multilingual_v2`, and fixed voice settings (stability 0.5, similarity 0.75, speaker boost on). It returns base64 PCM exactly as today, so `audio.ts`, `clip-cache.ts`, stitching, pauses, normalization and MP3 export stay untouched.
+- Replace the catalogue in `src/lib/voices.ts` with ElevenLabs voice IDs plus a `hindiSample` string; keep the gender-pool `suggestVoice` logic.
+- Drop the free-text `instructions` from the TTS payload (ElevenLabs has no such parameter); keep the field in the clip-cache key so changing a voice re-records only that speaker.
+- Simplify `src/components/CastStep.tsx` to the slot list + "+" button; remove merge/split/alias/confidence UI. Collapse `GenerateStep` progress into the Listen screen so generation is one automatic step.
+- `src/lib/preview.ts` plays the Hindi sample when no text is selected.
+- Errors surface ElevenLabs status and body; 429 keeps mapping to `RATE_LIMIT` for the existing backoff, 401 gives a clear "reconnect your key" message.
 
 ## Out of scope
-No changes to extraction, speaker analysis, chapter assembly, or the UI layout beyond the new voice names and Hindi preview line.
+No changes to extraction or chapter assembly logic, no accounts, no backend database.
