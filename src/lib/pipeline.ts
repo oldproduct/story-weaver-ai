@@ -337,12 +337,26 @@ export async function missingClips(plan: GenerationPlanItem[]): Promise<Generati
   return missing;
 }
 
+/** Shared cooldown so every worker backs off together when the voice engine throttles us. */
+let cooldownUntil = 0;
+async function waitForCooldown() {
+  const wait = cooldownUntil - Date.now();
+  if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+}
+function parseRetryAfterMs(msg: string): number {
+  const m = /RATE_LIMIT:(\d+)/.exec(msg);
+  const secs = m?.[1] ? Number(m[1]) : 0;
+  return secs > 0 ? Math.min(secs, 60) * 1000 : 0;
+}
+
 async function synthOne(item: GenerationPlanItem): Promise<Int16Array> {
   const pieces = splitForTts(item.text);
   const parts: Int16Array[] = [];
   for (const piece of pieces) {
     let audio: string | null = null;
-    for (let attempt = 0; attempt < 4; attempt++) {
+    const MAX_ATTEMPTS = 7;
+    for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
+      await waitForCooldown();
       try {
         const res = await withTimeout(
           synthesizeClip({
@@ -355,8 +369,13 @@ async function synthOne(item: GenerationPlanItem): Promise<Int16Array> {
         break;
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err);
-        if ((msg.includes("RATE_LIMIT") || msg.includes("TIMEOUT")) && attempt < 3) {
-          await new Promise((r) => setTimeout(r, 2000 * (attempt + 1)));
+        const limited = msg.includes("RATE_LIMIT");
+        if ((limited || msg.includes("TIMEOUT")) && attempt < MAX_ATTEMPTS - 1) {
+          const backoff =
+            parseRetryAfterMs(msg) ||
+            Math.min(30_000, 2000 * 2 ** attempt) + Math.floor(Math.random() * 500);
+          if (limited) cooldownUntil = Math.max(cooldownUntil, Date.now() + backoff);
+          await new Promise((r) => setTimeout(r, backoff));
           continue;
         }
         throw err;
@@ -373,7 +392,7 @@ export async function generateClips(
   plan: GenerationPlanItem[],
   onProgress: (p: GenerationProgress) => void,
   shouldStop: () => boolean,
-  concurrency = 3,
+  concurrency = 2,
 ): Promise<Record<string, { key: string; durationMs: number }>> {
   const result: Record<string, { key: string; durationMs: number }> = {};
   let done = 0;
