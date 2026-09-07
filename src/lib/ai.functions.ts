@@ -1,7 +1,12 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-const LineSchema = z.object({ i: z.number(), text: z.string(), context: z.string() });
+const LineSchema = z.object({
+  i: z.number(),
+  text: z.string(),
+  context: z.string(),
+  hint: z.string().optional(),
+});
 
 const RosterEntry = z.object({
   name: z.string(),
@@ -15,6 +20,8 @@ const AnalyzeInput = z.object({
   lines: z.array(LineSchema).min(1),
   roster: z.array(RosterEntry).default([]),
   title: z.string().default("Untitled"),
+  /** "dialogue" = quoted lines; "passage" = poem / script / prose with no quotes. */
+  mode: z.enum(["dialogue", "passage"]).default("dialogue"),
 });
 
 export interface AnalyzeResult {
@@ -35,7 +42,23 @@ Your job:
 Respond with JSON only, no prose, in this exact shape:
 {"assignments":[{"i":0,"speaker":"Elena Vance","confidence":0.9}],
  "characters":[{"name":"Elena Vance","aliases":["Elena","Dr. Vance"],"gender":"female","ageRange":"30s","description":"clipped, guarded surgeon"}]}
-"characters" must contain every speaker you used in assignments, including ones already in the roster (repeat them unchanged unless you learned something new).`;
+"characters" must contain every speaker you used in assignments, including ones already in the roster (repeat them unchanged unless you learned something new).
+Some lines include a "hint" field taken from a script-style cue in the text (e.g. "RAM: ..."). Trust the hint unless the text clearly contradicts it, but still normalise it to a canonical name.`;
+
+const PASSAGE_SYSTEM = `You are a casting engine for audiobook production working on text that has NO quotation marks: a poem, song, play/script, monologue, or plain prose.
+You receive numbered passages (a verse line, a script line, or a paragraph) with context, plus the roster discovered so far.
+
+Your job:
+1. For every passage, decide which VOICE should read it. If a character clearly speaks it (a script cue, a first-person voice, a distinct persona, a dialogue exchange without quotes), name that character. Otherwise use "Narrator".
+2. In a poem or song, treat clearly distinct voices (speaker vs. addressee, chorus/refrain vs. verses, alternating personas) as separate characters with descriptive names (e.g. "The Chorus", "The Traveller"). If the whole poem is one voice, assign everything to "Narrator" — do not invent characters that are not there.
+3. Never create a character for a name that is only mentioned or described. Only voices that actually speak/read.
+4. Collapse aliases into ONE canonical name and list the variants in aliases.
+5. confidence is 0..1: 1.0 for an explicit script cue, ~0.7 for a clear inference, <0.4 when guessing.
+
+Respond with JSON only, no prose, in this exact shape:
+{"assignments":[{"i":0,"speaker":"The Traveller","confidence":0.8}],
+ "characters":[{"name":"The Traveller","aliases":[],"gender":"male","ageRange":"adult","description":"weary, searching"}]}
+"characters" must contain every speaker you used in assignments except "Narrator", including ones already in the roster.`;
 
 function parseJson(raw: string): unknown {
   const trimmed = raw.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "");
@@ -58,7 +81,7 @@ export const analyzeChunk = createServerFn({ method: "POST" })
     const userPrompt = [
       `Book: ${data.title}`,
       `Known roster: ${JSON.stringify(data.roster)}`,
-      "Lines:",
+      data.mode === "passage" ? "Passages:" : "Lines:",
       JSON.stringify(data.lines),
     ].join("\n");
 
@@ -71,7 +94,7 @@ export const analyzeChunk = createServerFn({ method: "POST" })
       body: JSON.stringify({
         model: "google/gemini-3.7-flash",
         messages: [
-          { role: "system", content: SYSTEM },
+          { role: "system", content: data.mode === "passage" ? PASSAGE_SYSTEM : SYSTEM },
           { role: "user", content: userPrompt },
         ],
         response_format: { type: "json_object" },
