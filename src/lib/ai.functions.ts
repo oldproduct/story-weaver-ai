@@ -132,3 +132,79 @@ export const analyzeChunk = createServerFn({ method: "POST" })
         : [],
     };
   });
+
+const RefineLine = z.object({
+  i: z.number(),
+  text: z.string(),
+  context: z.string(),
+  before: z.string().default(""),
+  after: z.string().default(""),
+  current: z.string().default(""),
+});
+
+const RefineInput = z.object({
+  lines: z.array(RefineLine).min(1).max(30),
+  cast: z.array(z.string()).default([]),
+  title: z.string().default("Untitled"),
+});
+
+const REFINE_SYSTEM = `You are re-checking uncertain speaker attributions in an audiobook script.
+For each line you get the line text, its surrounding paragraph, and the confirmed speakers of the nearest lines before and after it ("before"/"after"), plus the confirmed cast list.
+
+Rules:
+1. Choose the speaker ONLY from the provided cast list, or "Narrator", or "Unknown" if it is truly impossible to tell.
+2. Use the surrounding confirmed speakers: an uninterrupted back-and-forth usually alternates.
+3. Do not invent new characters.
+4. confidence is 0..1.
+
+Respond with JSON only: {"assignments":[{"i":0,"speaker":"Meera","confidence":0.8}]}`;
+
+export const refineLines = createServerFn({ method: "POST" })
+  .inputValidator((input: unknown) => RefineInput.parse(input))
+  .handler(async ({ data }): Promise<{ assignments: AnalyzeResult["assignments"] }> => {
+    const key = process.env["LOVABLE_API_KEY"];
+    if (!key) throw new Error("AI is not configured for this project.");
+
+    const res = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+      body: JSON.stringify({
+        model: "google/gemini-3.7-flash",
+        messages: [
+          { role: "system", content: REFINE_SYSTEM },
+          {
+            role: "user",
+            content: [
+              `Book: ${data.title}`,
+              `Cast: ${JSON.stringify(data.cast)}`,
+              "Lines:",
+              JSON.stringify(data.lines),
+            ].join("\n"),
+          },
+        ],
+        response_format: { type: "json_object" },
+      }),
+    });
+
+    if (!res.ok) {
+      const body = await res.text().catch(() => "");
+      if (res.status === 429) throw new Error("RATE_LIMIT: too many requests, slowing down.");
+      if (res.status === 402)
+        throw new Error("Out of AI credits — add credits in Lovable to continue.");
+      throw new Error(`Re-detection failed [${res.status}]: ${body.slice(0, 300)}`);
+    }
+
+    const payload = (await res.json()) as { choices?: Array<{ message?: { content?: string } }> };
+    const parsed = parseJson(payload.choices?.[0]?.message?.content ?? "") as AnalyzeResult;
+    return {
+      assignments: Array.isArray(parsed.assignments)
+        ? parsed.assignments
+            .filter((a) => typeof a?.i === "number" && typeof a?.speaker === "string")
+            .map((a) => ({
+              i: a.i,
+              speaker: a.speaker.trim(),
+              confidence: Math.max(0, Math.min(1, Number(a.confidence) || 0.5)),
+            }))
+        : [],
+    };
+  });
