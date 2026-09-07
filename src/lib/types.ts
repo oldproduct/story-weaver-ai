@@ -16,6 +16,8 @@ export interface Segment {
   rawSpeaker?: string;
   /** Speaker name detected from the text itself (script format "NAME: line"). */
   hint?: string;
+  /** True when the user set this speaker by hand — auto-detect must not overwrite it. */
+  manual?: boolean;
 }
 
 export interface Chapter {
@@ -50,7 +52,7 @@ export interface ClipRef {
   durationMs: number;
 }
 
-export type Stage = "upload" | "analyze" | "cast" | "generate" | "listen";
+export type Stage = "upload" | "analyze" | "cast" | "review" | "generate" | "listen";
 
 export interface ProjectState {
   id: string;

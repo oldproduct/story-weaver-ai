@@ -101,11 +101,11 @@ export function CastStep({ project, onDone }: { project: ProjectState; onDone: (
         <Button
           disabled={!ready}
           onClick={() => {
-            updateProject((p) => ({ ...p, stage: "generate" }));
+            updateProject((p) => ({ ...p, stage: "review" }));
             onDone();
           }}
         >
-          Generate narration
+          Review lines
         </Button>
       </div>
 
