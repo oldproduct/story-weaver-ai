@@ -476,3 +476,72 @@ export async function assembleBook(project: ProjectState): Promise<Int16Array> {
   }
   return concatPcm(parts);
 }
+
+/** A line is "settled" when the user set it or the AI was confident. */
+export function isSettled(seg: Segment): boolean {
+  return Boolean(seg.manual) || seg.confidence >= 0.7;
+}
+
+/**
+ * Fill uncertain dialogue lines by continuing an obvious two-person alternation
+ * between settled anchors. Returns a new segment array.
+ */
+export function alternationFill(segments: Segment[]): { segments: Segment[]; filled: number } {
+  const byChapter = new Map<string, Segment[]>();
+  for (const s of [...segments].sort((a, b) => a.order - b.order)) {
+    const list = byChapter.get(s.chapterId) ?? [];
+    list.push(s);
+    byChapter.set(s.chapterId, list);
+  }
+
+  const updates = new Map<string, string>();
+  for (const list of byChapter.values()) {
+    const dialogue = list.filter((s) => s.kind === "dialogue");
+    for (let i = 0; i < dialogue.length; i++) {
+      const seg = dialogue[i]!;
+      if (isSettled(seg)) continue;
+      const prev = dialogue[i - 1];
+      const prev2 = dialogue[i - 2];
+      const next = dialogue[i + 1];
+      const prevId = prev && isSettled(prev) ? (updates.get(prev.id) ?? prev.speakerId) : null;
+      const prev2Id = prev2 && isSettled(prev2) ? (updates.get(prev2.id) ?? prev2.speakerId) : null;
+      const nextId = next && isSettled(next) ? next.speakerId : null;
+      let guess: string | null = null;
+      if (prevId && prev2Id && prevId !== prev2Id) guess = prev2Id;
+      else if (prevId && nextId && prevId === nextId) guess = null;
+      else if (prevId && nextId && prevId !== nextId) guess = nextId;
+      if (guess && guess !== seg.speakerId) updates.set(seg.id, guess);
+    }
+  }
+
+  if (updates.size === 0) return { segments, filled: 0 };
+  return {
+    segments: segments.map((s) => {
+      const next = updates.get(s.id);
+      return next ? { ...s, speakerId: next, confidence: 0.65 } : s;
+    }),
+    filled: updates.size,
+  };
+}
+
+/** Recompute per-character line/word counts after manual edits. */
+export function recountCharacters(
+  segments: Segment[],
+  characters: CharacterProfile[],
+): CharacterProfile[] {
+  const lines = new Map<string, number>();
+  const words = new Map<string, number>();
+  for (const s of segments) {
+    if (!s.speakerId) continue;
+    lines.set(s.speakerId, (lines.get(s.speakerId) ?? 0) + 1);
+    words.set(
+      s.speakerId,
+      (words.get(s.speakerId) ?? 0) + (s.text.match(/\S+/g) ?? []).length,
+    );
+  }
+  return characters.map((c) => ({
+    ...c,
+    lineCount: lines.get(c.id) ?? 0,
+    wordCount: words.get(c.id) ?? 0,
+  }));
+}
