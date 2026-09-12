@@ -27,7 +27,7 @@ export function voiceTagName(text: string): string | null {
 export function stripVoiceTags(text: string): string {
   return text
     .normalize("NFC")
-    .replace(VOICE_TAG_ANYWHERE, " ")
+    .replace(VOICE_TAG_ANYWHERE(), " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -54,7 +54,7 @@ export function parseSpeechBlock(
 /** Last line of defence before a speech request goes out. */
 export function assertSpeakableText(text: string): string {
   const lower = text.toLowerCase();
-  if (VOICE_TAG_ANYWHERE.test(text) || FORBIDDEN_METADATA.some((m) => lower.includes(m))) {
+  if (TAG_TEST.test(text) || FORBIDDEN_METADATA.some((m) => lower.includes(m))) {
     throw new Error("Voice metadata leaked into TTS text");
   }
   return text;
