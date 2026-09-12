@@ -1,5 +1,6 @@
 import { uid } from "./id";
 import type { Chapter, Segment } from "./types";
+import { isVoiceTagOnly, stripVoiceTags, voiceTagName } from "./voice-tags";
 
 const OPEN = ["\u201c", '"', "\u2018", "\u00ab", "\u201a", "\u201e"];
 const CLOSE: Record<string, string> = {
