@@ -433,9 +433,10 @@ export async function generateClips(
   return result;
 }
 
-const PAUSE_SAME = 180;
-const PAUSE_SPEAKER_CHANGE = 380;
-const PAUSE_PARAGRAPH = 300;
+/** Conversational gaps stay under 200ms so turns feel like real dialogue. */
+export const PAUSE_SAME = 120;
+export const PAUSE_SPEAKER_CHANGE = 150;
+export const PAUSE_PARAGRAPH = 140;
 
 export async function assembleChapter(
   project: ProjectState,
