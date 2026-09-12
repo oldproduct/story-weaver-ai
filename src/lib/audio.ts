@@ -54,6 +54,19 @@ export function trimSilence(pcm: Int16Array, threshold = 220): Int16Array {
   return pcm.subarray(Math.max(0, start - pad), Math.min(pcm.length, end + pad));
 }
 
+/** Short fade-in/out (ms) so joins between clips have no clicks. */
+export function applyFades(pcm: Int16Array, ms = 8): Int16Array {
+  const n = Math.min(Math.round((SAMPLE_RATE * ms) / 1000), Math.floor(pcm.length / 2));
+  if (n <= 0) return pcm;
+  const out = Int16Array.from(pcm);
+  for (let i = 0; i < n; i++) {
+    const g = i / n;
+    out[i] = Math.round((out[i] ?? 0) * g);
+    out[out.length - 1 - i] = Math.round((out[out.length - 1 - i] ?? 0) * g);
+  }
+  return out;
+}
+
 export async function encodeMp3(pcm: Int16Array, kbps = 96): Promise<Blob> {
   const { Mp3Encoder } = await import("@breezystack/lamejs");
   const encoder = new Mp3Encoder(1, SAMPLE_RATE, kbps);

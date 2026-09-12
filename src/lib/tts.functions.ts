@@ -33,7 +33,7 @@ export const synthesizeClip = createServerFn({ method: "POST" })
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          text: data.text,
+          text: spoken,
           model_id: "eleven_multilingual_v2",
           voice_settings: {
             stability: 0.5,
