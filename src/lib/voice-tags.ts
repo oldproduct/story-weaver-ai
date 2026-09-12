@@ -5,7 +5,9 @@
 
 export const VOICE_TAG_REGEX = /^\s*\(\s*voice\s*:\s*([^)]+?)\s*\)\s*/i;
 /** Same tag, anywhere in the text (used for cleanup and leak checks). */
-export const VOICE_TAG_ANYWHERE = /\(\s*(?:voice|speaker)\s*:\s*[^)]*\)/gi;
+const TAG_SOURCE = String.raw`\(\s*(?:voice|speaker)\s*:\s*[^)]*\)`;
+export const VOICE_TAG_ANYWHERE = () => new RegExp(TAG_SOURCE, "gi");
+const TAG_TEST = new RegExp(TAG_SOURCE, "i");
 
 export const FORBIDDEN_METADATA = ["(voice:", "voice:", "speaker:", "(speaker:"];
 
