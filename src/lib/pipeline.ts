@@ -261,15 +261,7 @@ export function voiceForSegment(
   segment: Segment,
   characters: CharacterProfile[],
   sharedVoiceId: string | null,
-  voiceMap?: Record<string, string>,
 ): { voice: string; instructions: string } | null {
-  if (segment.scriptSpeaker && voiceMap) {
-    const defaultVoice = characters.find((c) => c.isNarrator)?.voiceId || sharedVoiceId;
-    if (!defaultVoice) return null;
-    const voiceId = voiceMap[segment.scriptSpeaker.trim().toLowerCase()] || defaultVoice;
-    return { voice: voiceId, instructions: "" };
-  }
-
   const character = characters.find((c) => c.id === segment.speakerId);
   if (!character) return null;
   if (character.isNarrator || character.role === "lead") {
@@ -333,8 +325,7 @@ export interface GenerationPlanItem {
 export function buildPlan(project: ProjectState): GenerationPlanItem[] {
   const items: GenerationPlanItem[] = [];
   for (const seg of [...project.segments].sort((a, b) => a.order - b.order)) {
-    if (seg.speak === false) continue;
-    const assignment = voiceForSegment(seg, project.characters, project.sharedVoiceId, project.voiceMap);
+    const assignment = voiceForSegment(seg, project.characters, project.sharedVoiceId);
     if (!assignment) continue;
     items.push({
       segmentId: seg.id,
@@ -456,7 +447,6 @@ export async function assembleChapter(
   const parts: Int16Array[] = [];
   let lastSpeaker: string | null = null;
   for (const seg of segs) {
-    if (seg.speak === false) continue;
     const clip = project.clips[seg.id];
     if (!clip) continue;
     const pcm = await getClip(clip.key);

@@ -399,12 +399,12 @@ export function ReviewStep({
           size="sm"
           className="ml-auto h-8 text-[12px]"
           onClick={() => {
-            updateProject((p) => ({ ...p, stage: "preview" }));
+            updateProject((p) => ({ ...p, stage: "generate" }));
             onDone();
           }}
         >
           <Sparkles className="size-3.5" />
-          Preview & Generate
+          Generate narration
         </Button>
       </div>
     </div>

@@ -7,7 +7,6 @@ const STEPS: Array<{ id: Stage; label: string }> = [
   { id: "analyze", label: "AI Analyze" },
   { id: "cast", label: "Cast & Voices" },
   { id: "review", label: "Review Lines" },
-  { id: "preview", label: "Preview" },
   { id: "generate", label: "Generate" },
   { id: "listen", label: "Listen" },
 ];
