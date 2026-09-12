@@ -1,3 +1,4 @@
+import { parseScript } from "./parser";
 import { uid } from "./id";
 import type { Chapter, Segment } from "./types";
 
@@ -77,7 +78,20 @@ function tidyNarration(text: string): string {
   return text.replace(/^[,;:]\s*/, "").replace(/\s+([,.;:!?])/g, "$1").trim();
 }
 
+export function hasVoiceMarkers(chapters: Chapter[]): boolean {
+  for (const c of chapters) {
+    for (const p of c.paragraphs) {
+      if (/\(\s*voice\s*:\s*([^)]+)\)/i.test(p)) return true;
+    }
+  }
+  return false;
+}
+
 export function buildSegments(chapters: Chapter[]): Segment[] {
+  if (hasVoiceMarkers(chapters)) {
+    return parseScript(chapters, false).segments;
+  }
+
   const segments: Segment[] = [];
   let order = 0;
   for (const chapter of chapters) {
@@ -95,6 +109,7 @@ export function buildSegments(chapters: Chapter[]): Segment[] {
           speakerId: span.kind === "narration" ? "narrator" : null,
           confidence: span.kind === "narration" ? 1 : 0,
           ...(span.hint ? { hint: span.hint } : {}),
+          speak: true,
         });
       }
     }

@@ -8,7 +8,7 @@ import {
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { buildChapters, extractText } from "@/lib/extract";
-import { buildSegments, estimateMinutes } from "@/lib/segment";
+import { buildSegments, estimateMinutes, hasVoiceMarkers } from "@/lib/segment";
 import { uid } from "@/lib/id";
 import { setProject } from "@/lib/store";
 import type { Chapter, ProjectState, Segment } from "@/lib/types";
@@ -18,9 +18,12 @@ interface Draft {
   fileName: string;
   chapters: Chapter[];
   segments: Segment[];
+  isScript: boolean;
+  spokenCount: number;
+  skippedCount: number;
 }
 
-export function UploadStep({ onReady }: { onReady: () => void }) {
+export function UploadStep({ onReady }: { onReady: (stage?: string) => void }) {
   const [busy, setBusy] = useState(false);
   const [dragging, setDragging] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -31,8 +34,11 @@ export function UploadStep({ onReady }: { onReady: () => void }) {
       throw new Error("That file has almost no readable text. Scanned PDFs aren't supported yet.");
     }
     const chapters = buildChapters(raw);
+    const isScript = hasVoiceMarkers(chapters);
     const segments = buildSegments(chapters);
-    setDraft({ fileName, chapters, segments });
+    const spokenCount = segments.filter(s => s.speak).length;
+    const skippedCount = segments.filter(s => !s.speak).length;
+    setDraft({ fileName, chapters, segments, isScript, spokenCount, skippedCount });
   };
 
   const handleFile = async (file: File) => {
@@ -59,9 +65,42 @@ export function UploadStep({ onReady }: { onReady: () => void }) {
       sharedVoiceId: null,
       clips: {},
       createdAt: Date.now(),
+      narrateStageDirections: false,
+      voiceMap: {},
+      unknownVoices: [],
     };
-    setProject(project);
-    onReady();
+    
+    if (draft.isScript) {
+      // In script mode, we extract character rosters directly from voice markers
+      const speakerNames = new Set<string>();
+      for (const s of draft.segments) {
+        if (s.scriptSpeaker) speakerNames.add(s.scriptSpeaker);
+      }
+      
+      const characters = Array.from(speakerNames).map((name) => ({
+        id: uid("chr"),
+        name,
+        aliases: [],
+        gender: "unknown" as const,
+        ageRange: "adult",
+        description: "Imported from script marker",
+        isNarrator: false,
+        lineCount: draft.segments.filter(s => s.scriptSpeaker === name).length,
+        wordCount: draft.segments.filter(s => s.scriptSpeaker === name).reduce((acc, s) => acc + (s.text.match(/\S+/g) ?? []).length, 0),
+        firstChapter: 0,
+        role: "lead" as const,
+        voiceId: null,
+        instructions: "",
+      }));
+      
+      project.characters = characters;
+      project.stage = "cast";
+      setProject(project);
+      onReady("cast");
+    } else {
+      setProject(project);
+      onReady("analyze");
+    }
   };
 
   const words = draft?.chapters.reduce((n, c) => n + c.wordCount, 0) ?? 0;
@@ -155,7 +194,9 @@ export function UploadStep({ onReady }: { onReady: () => void }) {
                   </span>
                 </div>
                 <p className="mt-0.5 text-[12px] text-subtle">
-                  Manuscript parsed successfully with chapters and quoted speech separated.
+                  {draft.isScript 
+                    ? "Script format detected. Voice markers and stage directions parsed."
+                    : "Manuscript parsed successfully with chapters and quoted speech separated."}
                 </p>
               </div>
             </div>
@@ -174,7 +215,7 @@ export function UploadStep({ onReady }: { onReady: () => void }) {
                 className="h-8.5 rounded-lg px-4 text-[12px] font-medium bg-strong text-white hover:bg-strong/90 shadow-xs"
                 onClick={start}
               >
-                Analyze speakers
+                {draft.isScript ? "Proceed to cast voices" : "Analyze speakers"}
                 <ArrowRight className="size-3.5 ml-1.5" />
               </Button>
             </div>
@@ -191,12 +232,20 @@ export function UploadStep({ onReady }: { onReady: () => void }) {
               <p className="mt-1 text-[18px] font-medium text-strong">{words.toLocaleString()}</p>
             </div>
             <div className="rounded-xl border border-border bg-card p-3.5 shadow-2xs">
-              <span className="text-[11px] font-medium text-subtle uppercase tracking-wider">Quoted Lines</span>
-              <p className="mt-1 text-[18px] font-medium text-strong">{dialogueLines.toLocaleString()}</p>
+              <span className="text-[11px] font-medium text-subtle uppercase tracking-wider">
+                {draft.isScript ? "Spoken Lines" : "Quoted Lines"}
+              </span>
+              <p className="mt-1 text-[18px] font-medium text-strong">
+                {draft.isScript ? draft.spokenCount.toLocaleString() : dialogueLines.toLocaleString()}
+              </p>
             </div>
             <div className="rounded-xl border border-border bg-card p-3.5 shadow-2xs">
-              <span className="text-[11px] font-medium text-subtle uppercase tracking-wider">Est. Narration</span>
-              <p className="mt-1 text-[18px] font-medium text-strong">~{Math.round(estimateMinutes(words))} min</p>
+              <span className="text-[11px] font-medium text-subtle uppercase tracking-wider">
+                {draft.isScript ? "Skipped Directions" : "Est. Narration"}
+              </span>
+              <p className="mt-1 text-[18px] font-medium text-strong">
+                {draft.isScript ? draft.skippedCount.toLocaleString() : `~${Math.round(estimateMinutes(words))} min`}
+              </p>
             </div>
           </div>
 

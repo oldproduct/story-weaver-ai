@@ -1,4 +1,4 @@
-export type SegmentKind = "narration" | "dialogue";
+export type SegmentKind = "narration" | "dialogue" | "stage_direction";
 
 export interface Segment {
   id: string;
@@ -18,6 +18,10 @@ export interface Segment {
   hint?: string;
   /** True when the user set this speaker by hand — auto-detect must not overwrite it. */
   manual?: boolean;
+  /** Whether this segment should be synthesized by TTS. */
+  speak?: boolean;
+  /** The raw voice marker name found in the document (e.g. "Amitabh"). */
+  scriptSpeaker?: string;
 }
 
 export interface Chapter {
@@ -52,7 +56,7 @@ export interface ClipRef {
   durationMs: number;
 }
 
-export type Stage = "upload" | "analyze" | "cast" | "review" | "generate" | "listen";
+export type Stage = "upload" | "analyze" | "cast" | "review" | "preview" | "generate" | "listen";
 
 export interface ProjectState {
   id: string;
@@ -64,6 +68,12 @@ export interface ProjectState {
   sharedVoiceId: string | null;
   clips: Record<string, ClipRef>;
   createdAt: number;
+  /** Whether to narrate stage directions using the narrator voice. */
+  narrateStageDirections?: boolean;
+  /** Map of lowercase speaker name to ElevenLabs voice ID (used in script mode). */
+  voiceMap?: Record<string, string>;
+  /** List of voice names found in the script that have no mapping. */
+  unknownVoices?: string[];
 }
 
 export const SUPPORTING_ID = "supporting-pool";

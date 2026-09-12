@@ -30,6 +30,27 @@ export function voiceLabel(id: string | null): string {
   return VOICES.find((v) => v.id === id)?.label ?? id;
 }
 
+export function buildVoiceMap(characters: { name: string; aliases: string[]; voiceId: string | null }[]): Record<string, string> {
+  const map: Record<string, string> = {};
+  for (const c of characters) {
+    if (!c.voiceId) continue;
+    map[c.name.trim().toLowerCase()] = c.voiceId;
+    for (const a of c.aliases) {
+      map[a.trim().toLowerCase()] = c.voiceId;
+    }
+  }
+  return map;
+}
+
+export function resolveVoice(speakerName: string, voiceMap: Record<string, string>, defaultVoiceId: string): string {
+  const key = speakerName.trim().toLowerCase();
+  return voiceMap[key] || defaultVoiceId;
+}
+
+export function findUnknownVoices(detectedSpeakers: string[], voiceMap: Record<string, string>): string[] {
+  return detectedSpeakers.filter((s) => !voiceMap[s.trim().toLowerCase()]);
+}
+
 const MALE = VOICES.filter((v) => v.gender === "male").map((v) => v.id);
 const FEMALE = VOICES.filter((v) => v.gender === "female").map((v) => v.id);
 const NEUTRAL = VOICES.filter((v) => v.gender === "neutral").map((v) => v.id);

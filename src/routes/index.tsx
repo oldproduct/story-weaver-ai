@@ -7,6 +7,7 @@ import { UploadStep } from "@/components/UploadStep";
 import { AnalyzeStep } from "@/components/AnalyzeStep";
 import { CastStep } from "@/components/CastStep";
 import { ReviewStep } from "@/components/ReviewStep";
+import { PreviewStep } from "@/components/PreviewStep";
 import { GenerateStep } from "@/components/GenerateStep";
 import { ListenStep } from "@/components/ListenStep";
 import { hydrate, setProject, updateProject, useHydrated, useProject } from "@/lib/store";
@@ -35,7 +36,7 @@ export const Route = createFileRoute("/")({
   component: Studio,
 });
 
-const ORDER: Stage[] = ["upload", "analyze", "cast", "review", "generate", "listen"];
+const ORDER: Stage[] = ["upload", "analyze", "cast", "review", "preview", "generate", "listen"];
 
 function Studio() {
   const hydrated = useHydrated();
@@ -119,7 +120,7 @@ function Studio() {
                 full cast.
               </p>
             </section>
-            <UploadStep onReady={() => setStage("analyze")} />
+            <UploadStep onReady={(s) => setStage((s as Stage) ?? "analyze")} />
           </>
         ) : stage === "analyze" ? (
           <AnalyzeStep project={project} onDone={() => setStage("cast")} />
@@ -128,8 +129,14 @@ function Studio() {
         ) : stage === "review" ? (
           <ReviewStep
             project={project}
-            onDone={() => setStage("generate")}
+            onDone={() => setStage("preview")}
             onBack={() => setStage("cast")}
+          />
+        ) : stage === "preview" ? (
+          <PreviewStep
+            project={project}
+            onDone={() => setStage("generate")}
+            onBack={() => setStage("review")}
           />
         ) : stage === "generate" ? (
           <GenerateStep project={project} onDone={() => setStage("listen")} />
