@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { assertSpeakableText, stripVoiceTags } from "./voice-tags";
 
 const SynthInput = z.object({
   text: z.string().min(1).max(4000),
