@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Loader2, ScanSearch, Sparkles, Wand2 } from "lucide-react";
+import { Check, Loader2, ScanSearch, Sparkles, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -23,11 +23,33 @@ type Filter = "all" | "uncertain";
 const PAGE = 150;
 const UNCERTAIN = 0.7;
 
-function confidenceTone(seg: Segment): string {
-  if (seg.manual) return "text-sage";
-  if (seg.confidence >= UNCERTAIN) return "text-sage";
-  if (seg.confidence >= 0.4) return "text-brass";
-  return "text-destructive";
+function confidenceBadge(seg: Segment) {
+  if (seg.manual) {
+    return (
+      <span className="inline-flex items-center rounded bg-[#F0FDF4] px-1.5 py-0.5 text-[10px] font-medium text-[#15803D] border border-[#DCFCE7]">
+        Locked by you
+      </span>
+    );
+  }
+  if (seg.confidence >= UNCERTAIN) {
+    return (
+      <span className="inline-flex items-center rounded bg-[#F0FDF4] px-1.5 py-0.5 text-[10px] font-medium text-[#15803D] border border-[#DCFCE7]">
+        {Math.round(seg.confidence * 100)}% sure
+      </span>
+    );
+  }
+  if (seg.confidence >= 0.4) {
+    return (
+      <span className="inline-flex items-center rounded bg-[#FFFBEB] px-1.5 py-0.5 text-[10px] font-medium text-[#B45309] border border-[#FEF3C7]">
+        {Math.round(seg.confidence * 100)}% uncertain
+      </span>
+    );
+  }
+  return (
+    <span className="inline-flex items-center rounded bg-[#FEF2F2] px-1.5 py-0.5 text-[10px] font-medium text-[#B91C1C] border border-[#FEE2E2]">
+      {Math.round(seg.confidence * 100)}% check
+    </span>
+  );
 }
 
 function speakerName(id: string | null, characters: CharacterProfile[]): string {
@@ -211,27 +233,30 @@ export function ReviewStep({
   const options = project.characters;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
-        <h2 className="text-3xl">Review the lines</h2>
-        <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-          Every line with the speaker the AI picked and how sure it was. Fix anything that looks
-          wrong — your choices are locked in and never overwritten by auto-detect.
+        <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-bg-selected px-2.5 py-0.5 text-[11px] font-medium text-default mb-2">
+          <Check className="size-3 text-strong" />
+          Step 4 · Attribution Review
+        </div>
+        <h2 className="text-[18px] font-medium text-strong">Review & refine speaker lines</h2>
+        <p className="mt-1 max-w-xl text-[13px] text-default">
+          Every line with its AI-assigned speaker and confidence score. Fix any mismatch — your choices are locked in and never overwritten.
         </p>
       </div>
 
-      <div className="hairline flex flex-wrap items-center gap-3 rounded-xl border bg-surface p-4">
-        <span className="text-sm">
-          <strong className="font-mono text-brass">{uncertainCount}</strong> uncertain of{" "}
+      <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3.5 shadow-xs">
+        <span className="text-[13px] text-default">
+          <strong className="font-mono text-strong">{uncertainCount}</strong> uncertain of{" "}
           {ordered.length} lines
         </span>
         <div className="ml-auto flex flex-wrap gap-2">
-          <Button size="sm" variant="secondary" onClick={runFill} disabled={busy}>
-            <Wand2 className="size-4" />
+          <Button size="sm" variant="secondary" className="h-8 text-[12px]" onClick={runFill} disabled={busy}>
+            <Wand2 className="size-3.5" />
             Fill from pattern
           </Button>
-          <Button size="sm" variant="secondary" onClick={() => void runRedetect()} disabled={busy}>
-            {busy ? <Loader2 className="size-4 animate-spin" /> : <ScanSearch className="size-4" />}
+          <Button size="sm" variant="secondary" className="h-8 text-[12px]" onClick={() => void runRedetect()} disabled={busy}>
+            {busy ? <Loader2 className="size-3.5 animate-spin" /> : <ScanSearch className="size-3.5" />}
             Re-detect uncertain
           </Button>
         </div>
@@ -240,6 +265,7 @@ export function ReviewStep({
       <div className="flex flex-wrap items-center gap-2">
         <Button
           size="sm"
+          className="h-8 text-[12px]"
           variant={filter === "all" ? "default" : "ghost"}
           onClick={() => setFilter("all")}
         >
@@ -247,13 +273,14 @@ export function ReviewStep({
         </Button>
         <Button
           size="sm"
+          className="h-8 text-[12px]"
           variant={filter === "uncertain" ? "default" : "ghost"}
           onClick={() => setFilter("uncertain")}
         >
           Low confidence
         </Button>
         <Select value={speakerFilter} onValueChange={setSpeakerFilter}>
-          <SelectTrigger className="h-9 w-52">
+          <SelectTrigger className="h-8 w-48 text-[12px]">
             <SelectValue placeholder="Any speaker" />
           </SelectTrigger>
           <SelectContent>
@@ -269,20 +296,20 @@ export function ReviewStep({
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder="Search the text…"
-          className="h-9 w-56"
+          className="h-8 w-52 text-[12px]"
         />
       </div>
 
       {selected.size > 0 && (
-        <div className="hairline sticky top-20 z-10 flex flex-wrap items-center gap-3 rounded-xl border bg-surface p-3">
-          <span className="text-sm">{selected.size} selected</span>
+        <div className="sticky top-16 z-10 flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3 shadow-sm">
+          <span className="text-[12px] font-medium text-strong">{selected.size} selected</span>
           <Select value="" onValueChange={(v) => {
             const ids = [...selected];
             if (v === "__new") addSpeaker(ids);
             else setSpeaker(ids, v);
             setSelected(new Set());
           }}>
-            <SelectTrigger className="h-9 w-56">
+            <SelectTrigger className="h-8 w-52 text-[12px]">
               <SelectValue placeholder="Assign all to…" />
             </SelectTrigger>
             <SelectContent>
@@ -294,7 +321,7 @@ export function ReviewStep({
               <SelectItem value="__new">New speaker…</SelectItem>
             </SelectContent>
           </Select>
-          <Button size="sm" variant="ghost" onClick={() => setSelected(new Set())}>
+          <Button size="sm" variant="ghost" className="h-8 text-[12px]" onClick={() => setSelected(new Set())}>
             Clear
           </Button>
         </div>
@@ -307,14 +334,14 @@ export function ReviewStep({
           return (
             <div key={seg.id}>
               {newChapter && (
-                <p className="mb-2 mt-6 text-xs uppercase tracking-[0.2em] text-muted-foreground">
+                <p className="mb-2 mt-5 text-[12px] font-medium uppercase tracking-wider text-subtle">
                   {chapterTitle.get(seg.chapterId) ?? "Chapter"}
                 </p>
               )}
               <div
                 className={cn(
-                  "hairline flex flex-wrap items-start gap-3 rounded-lg border bg-surface p-3",
-                  !isSettled(seg) && "border-brass/40",
+                  "flex flex-wrap items-start gap-3 rounded-lg border border-border bg-card p-3 text-[13px] shadow-2xs transition-all hover:border-default/30",
+                  !isSettled(seg) && "border-amber-200/60 bg-amber-50/20",
                 )}
               >
                 <Checkbox
@@ -324,20 +351,21 @@ export function ReviewStep({
                   aria-label="Select line"
                 />
                 <div className="min-w-[14rem] flex-1">
-                  <p className="text-sm leading-relaxed">
+                  <p className="text-[13px] leading-relaxed text-strong">
                     {seg.kind === "dialogue" ? `“${seg.text}”` : seg.text}
                   </p>
-                  <p className={cn("mt-1 font-mono text-[11px]", confidenceTone(seg))}>
-                    {seg.manual
-                      ? "set by you · 100%"
-                      : `${seg.kind} · ${Math.round(seg.confidence * 100)}% sure`}
-                  </p>
+                  <div className="mt-1.5 flex items-center gap-2">
+                    {confidenceBadge(seg)}
+                    <span className="font-mono text-[11px] text-subtle">
+                      {seg.kind === "dialogue" ? "dialogue quote" : "narration"}
+                    </span>
+                  </div>
                 </div>
                 <Select
                   value={seg.speakerId ?? ""}
                   onValueChange={(v) => (v === "__new" ? addSpeaker([seg.id]) : setSpeaker([seg.id], v))}
                 >
-                  <SelectTrigger className="h-9 w-52">
+                  <SelectTrigger className="h-8 w-48 text-[12px]">
                     <SelectValue placeholder="Choose speaker" />
                   </SelectTrigger>
                   <SelectContent>
@@ -354,27 +382,28 @@ export function ReviewStep({
           );
         })}
         {shown.length === 0 && (
-          <p className="text-sm text-muted-foreground">No lines match this filter.</p>
+          <p className="text-[13px] text-subtle">No lines match this filter.</p>
         )}
         {visible.length > shown.length && (
-          <Button variant="secondary" className="w-full" onClick={() => setLimit(limit + PAGE)}>
+          <Button variant="secondary" size="sm" className="w-full h-8 text-[12px]" onClick={() => setLimit(limit + PAGE)}>
             Show more ({visible.length - shown.length} left)
           </Button>
         )}
       </div>
 
       <div className="flex flex-wrap gap-3">
-        <Button variant="ghost" onClick={onBack}>
+        <Button variant="ghost" size="sm" className="h-8 text-[12px]" onClick={onBack}>
           Back to voices
         </Button>
         <Button
-          className="ml-auto"
+          size="sm"
+          className="ml-auto h-8 text-[12px]"
           onClick={() => {
             updateProject((p) => ({ ...p, stage: "generate" }));
             onDone();
           }}
         >
-          <Sparkles className="size-4" />
+          <Sparkles className="size-3.5" />
           Generate narration
         </Button>
       </div>

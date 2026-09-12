@@ -1,5 +1,10 @@
 import { useRef, useState } from "react";
-import { FileText, Loader2, UploadCloud } from "lucide-react";
+import {
+  FileText,
+  Loader2,
+  UploadCloud,
+  ArrowRight,
+} from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { buildChapters, extractText } from "@/lib/extract";
@@ -21,16 +26,20 @@ export function UploadStep({ onReady }: { onReady: () => void }) {
   const [draft, setDraft] = useState<Draft | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
+  const processText = (fileName: string, raw: string) => {
+    if (raw.replace(/\s/g, "").length < 60) {
+      throw new Error("That file has almost no readable text. Scanned PDFs aren't supported yet.");
+    }
+    const chapters = buildChapters(raw);
+    const segments = buildSegments(chapters);
+    setDraft({ fileName, chapters, segments });
+  };
+
   const handleFile = async (file: File) => {
     setBusy(true);
     try {
       const raw = await extractText(file);
-      if (raw.replace(/\s/g, "").length < 60) {
-        throw new Error("That file has almost no readable text. Scanned PDFs aren't supported yet.");
-      }
-      const chapters = buildChapters(raw);
-      const segments = buildSegments(chapters);
-      setDraft({ fileName: file.name, chapters, segments });
+      processText(file.name, raw);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Couldn't read that file.");
     } finally {
@@ -57,89 +66,162 @@ export function UploadStep({ onReady }: { onReady: () => void }) {
 
   const words = draft?.chapters.reduce((n, c) => n + c.wordCount, 0) ?? 0;
   const dialogueLines = draft?.segments.filter((s) => s.kind === "dialogue").length ?? 0;
+  const narrationLines = draft?.segments.filter((s) => s.kind === "narration").length ?? 0;
 
   return (
-    <div className="space-y-8">
-      <div>
-        <h2 className="text-3xl">Bring in a manuscript</h2>
-        <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-          PDF, DOCX, or TXT. Everything is processed in your browser — chapters, paragraphs, and
-          quoted dialogue are preserved before any AI touches the text.
-        </p>
-      </div>
-
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(e) => {
-          e.preventDefault();
-          setDragging(false);
-          const file = e.dataTransfer.files?.[0];
-          if (file) void handleFile(file);
-        }}
-        className={cn(
-          "hairline relative flex min-h-56 flex-col items-center justify-center rounded-xl border border-dashed bg-surface/60 p-10 text-center transition-colors",
-          dragging && "border-brass bg-surface-raised",
-        )}
-      >
-        {busy ? (
-          <div className="flex flex-col items-center gap-3 text-sm text-muted-foreground">
-            <Loader2 className="size-6 animate-spin text-brass" />
-            Extracting text…
-          </div>
-        ) : (
-          <>
-            <UploadCloud className="size-8 text-brass" />
-            <p className="mt-4 text-sm">Drop your file here</p>
-            <p className="mt-1 text-xs text-muted-foreground">PDF · DOCX · TXT · book-length is fine</p>
-            <Button variant="secondary" className="mt-5" onClick={() => inputRef.current?.click()}>
-              Choose a file
-            </Button>
-          </>
-        )}
-        <input
-          ref={inputRef}
-          type="file"
-          accept=".pdf,.docx,.txt,.md"
-          className="sr-only"
-          onChange={(e) => {
-            const file = e.target.files?.[0];
-            if (file) void handleFile(file);
-            e.target.value = "";
+    <div className="space-y-6">
+      {!draft ? (
+        /* Minimalist Hero Upload Dropzone */
+        <div
+          onDragOver={(e) => {
+            e.preventDefault();
+            setDragging(true);
           }}
-        />
-      </div>
+          onDragLeave={() => setDragging(false)}
+          onDrop={(e) => {
+            e.preventDefault();
+            setDragging(false);
+            const file = e.dataTransfer.files?.[0];
+            if (file) void handleFile(file);
+          }}
+          className={cn(
+            "relative flex min-h-64 flex-col items-center justify-center rounded-2xl border-2 border-dashed bg-card p-10 text-center transition-all duration-200",
+            dragging
+              ? "border-strong bg-bg-selected shadow-md scale-[1.005]"
+              : "border-border hover:border-default/30 hover:bg-bg-selected/30 shadow-xs",
+          )}
+        >
+          {busy ? (
+            <div className="flex flex-col items-center gap-3 py-6 text-default">
+              <div className="flex size-11 items-center justify-center rounded-xl bg-bg-selected border border-border">
+                <Loader2 className="size-5 animate-spin text-strong" />
+              </div>
+              <p className="text-[13px] font-medium text-strong">Extracting manuscript text…</p>
+              <p className="text-[12px] text-subtle">Detecting chapters, paragraphs, and dialogue quotes</p>
+            </div>
+          ) : (
+            <>
+              <div className="flex size-12 items-center justify-center rounded-xl border border-border bg-bg-selected text-strong shadow-2xs mb-4">
+                <UploadCloud className="size-6 text-strong" />
+              </div>
+              <h3 className="text-[16px] font-medium text-strong">Upload your manuscript</h3>
+              <p className="mt-1 max-w-sm text-[13px] text-default">
+                Drag and drop your file here, or click to browse from your device
+              </p>
 
-      {draft && (
-        <div className="hairline rounded-xl border bg-surface p-6">
-          <div className="flex flex-wrap items-start justify-between gap-4">
+              <div className="mt-4 flex flex-wrap items-center justify-center gap-1.5 text-[11px] font-medium text-subtle">
+                <span className="rounded bg-bg-selected px-2 py-0.5 border border-border">PDF</span>
+                <span className="rounded bg-bg-selected px-2 py-0.5 border border-border">DOCX</span>
+                <span className="rounded bg-bg-selected px-2 py-0.5 border border-border">TXT</span>
+                <span className="rounded bg-bg-selected px-2 py-0.5 border border-border">Markdown</span>
+                <span className="text-subtle/70 ml-1">· Book-length supported</span>
+              </div>
+
+              <Button
+                variant="default"
+                size="sm"
+                className="mt-5 h-8.5 rounded-lg px-4 text-[12px] font-medium shadow-xs"
+                onClick={() => inputRef.current?.click()}
+              >
+                Choose file from device
+              </Button>
+            </>
+          )}
+          <input
+            ref={inputRef}
+            type="file"
+            accept=".pdf,.docx,.txt,.md"
+            className="sr-only"
+            onChange={(e) => {
+              const file = e.target.files?.[0];
+              if (file) void handleFile(file);
+              e.target.value = "";
+            }}
+          />
+        </div>
+      ) : (
+        /* Manuscript Inspection Screen */
+        <div className="space-y-5 animate-in fade-in-50 duration-200">
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-xl border border-border bg-card p-5 shadow-xs">
             <div className="flex items-start gap-3">
-              <FileText className="mt-0.5 size-5 text-brass" />
+              <div className="flex size-10 items-center justify-center rounded-lg bg-bg-selected border border-border text-strong shrink-0">
+                <FileText className="size-5" />
+              </div>
               <div>
-                <p className="font-medium">{draft.fileName}</p>
-                <p className="text-xs text-muted-foreground">
-                  {draft.chapters.length} chapters · {words.toLocaleString()} words ·{" "}
-                  {dialogueLines.toLocaleString()} quoted lines · ~
-                  {Math.round(estimateMinutes(words))} min of narration
+                <div className="flex items-center gap-2">
+                  <h3 className="text-[15px] font-medium text-strong">{draft.fileName}</h3>
+                  <span className="rounded bg-bg-selected px-1.5 py-0.5 text-[11px] font-medium text-subtle border border-border">
+                    Ready for AI
+                  </span>
+                </div>
+                <p className="mt-0.5 text-[12px] text-subtle">
+                  Manuscript parsed successfully with chapters and quoted speech separated.
                 </p>
               </div>
             </div>
-            <Button onClick={start}>Analyze speakers</Button>
+
+            <div className="flex items-center gap-2.5">
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-8 text-[12px] text-subtle hover:text-strong"
+                onClick={() => setDraft(null)}
+              >
+                Change file
+              </Button>
+              <Button
+                size="sm"
+                className="h-8.5 rounded-lg px-4 text-[12px] font-medium bg-strong text-white hover:bg-strong/90 shadow-xs"
+                onClick={start}
+              >
+                Analyze speakers
+                <ArrowRight className="size-3.5 ml-1.5" />
+              </Button>
+            </div>
           </div>
 
-          <ul className="mt-5 max-h-56 divide-y divide-border overflow-y-auto rounded-lg border bg-background/40 text-sm">
-            {draft.chapters.map((c) => (
-              <li key={c.id} className="flex items-center justify-between px-4 py-2">
-                <span className="truncate pr-4">{c.title}</span>
-                <span className="shrink-0 font-mono text-xs text-muted-foreground">
-                  {c.wordCount.toLocaleString()} w
-                </span>
-              </li>
-            ))}
-          </ul>
+          {/* Metric Cards Grid */}
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <div className="rounded-xl border border-border bg-card p-3.5 shadow-2xs">
+              <span className="text-[11px] font-medium text-subtle uppercase tracking-wider">Chapters</span>
+              <p className="mt-1 text-[18px] font-medium text-strong">{draft.chapters.length}</p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-3.5 shadow-2xs">
+              <span className="text-[11px] font-medium text-subtle uppercase tracking-wider">Total Words</span>
+              <p className="mt-1 text-[18px] font-medium text-strong">{words.toLocaleString()}</p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-3.5 shadow-2xs">
+              <span className="text-[11px] font-medium text-subtle uppercase tracking-wider">Quoted Lines</span>
+              <p className="mt-1 text-[18px] font-medium text-strong">{dialogueLines.toLocaleString()}</p>
+            </div>
+            <div className="rounded-xl border border-border bg-card p-3.5 shadow-2xs">
+              <span className="text-[11px] font-medium text-subtle uppercase tracking-wider">Est. Narration</span>
+              <p className="mt-1 text-[18px] font-medium text-strong">~{Math.round(estimateMinutes(words))} min</p>
+            </div>
+          </div>
+
+          {/* Chapter Breakdown Drawer */}
+          <div className="rounded-xl border border-border bg-card overflow-hidden shadow-xs">
+            <div className="flex items-center justify-between border-b border-border bg-bg-selected/60 px-4 py-2.5">
+              <span className="text-[12px] font-medium text-strong">Detected Chapters & Length</span>
+              <span className="text-[11px] text-subtle font-mono">{narrationLines} narration · {dialogueLines} dialogue</span>
+            </div>
+            <ul className="max-h-60 divide-y divide-border overflow-y-auto text-[12px]">
+              {draft.chapters.map((c, i) => (
+                <li key={c.id} className="flex items-center justify-between px-4 py-2.5 hover:bg-bg-selected/40 transition-colors">
+                  <div className="flex items-center gap-2.5">
+                    <span className="flex size-4.5 items-center justify-center rounded-full bg-bg-selected text-[10px] font-mono text-subtle border border-border">
+                      {i + 1}
+                    </span>
+                    <span className="truncate font-medium text-strong">{c.title}</span>
+                  </div>
+                  <span className="shrink-0 font-mono text-[11px] text-subtle">
+                    {c.wordCount.toLocaleString()} words
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       )}
     </div>

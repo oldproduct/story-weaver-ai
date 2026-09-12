@@ -1,9 +1,9 @@
 import { useEffect, useRef, useState } from "react";
-import { Download, Loader2, Pause, Play, RotateCcw } from "lucide-react";
+import { Download, Headphones, Loader2, Pause, Play, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { assembleBook, assembleChapter } from "@/lib/pipeline";
-import { durationMs, encodeMp3, pcmToWavBlob } from "@/lib/audio";
+import { encodeMp3, pcmToWavBlob } from "@/lib/audio";
 import { stopPreview } from "@/lib/preview";
 import { updateProject } from "@/lib/store";
 import type { ProjectState } from "@/lib/types";
@@ -80,46 +80,63 @@ export function ListenStep({ project, onBack }: { project: ProjectState; onBack:
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h2 className="text-3xl">Your audiobook</h2>
-          <p className="mt-2 text-sm text-muted-foreground">
-            {project.chapters.length} chapters · {fmt(totalMs)} of narration ·{" "}
-            {new Set(project.characters.filter((c) => c.voiceId).map((c) => c.voiceId)).size} voices
+          <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-bg-selected px-2.5 py-0.5 text-[11px] font-medium text-default mb-2">
+            <Headphones className="size-3 text-strong" />
+            Step 6 · Mastered Audio & Export
+          </div>
+          <h2 className="text-[18px] font-medium text-strong">Your multi-voice audiobook</h2>
+          <p className="mt-1 text-[13px] text-default">
+            {project.chapters.length} chapters · {fmt(totalMs)} of audio ·{" "}
+            {new Set(project.characters.filter((c) => c.voiceId).map((c) => c.voiceId)).size} distinct voices
           </p>
         </div>
         <div className="flex gap-2">
           <Button
             variant="secondary"
+            size="sm"
+            className="h-8.5 rounded-lg text-[12px]"
             onClick={() => {
               updateProject((p) => ({ ...p, stage: "cast" }));
               onBack();
             }}
           >
-            <RotateCcw className="size-4" />
+            <RotateCcw className="size-3.5 mr-1" />
             Adjust cast
           </Button>
-          <Button disabled={busy === "dl-all"} onClick={() => void download("all", project.fileName)}>
-            {busy === "dl-all" ? <Loader2 className="size-4 animate-spin" /> : <Download className="size-4" />}
+          <Button
+            size="sm"
+            className="h-8.5 rounded-lg text-[12px] bg-strong text-white hover:bg-strong/90 shadow-xs"
+            disabled={busy === "dl-all"}
+            onClick={() => void download("all", project.fileName)}
+          >
+            {busy === "dl-all" ? <Loader2 className="size-3.5 animate-spin mr-1" /> : <Download className="size-3.5 mr-1" />}
             Download full MP3
           </Button>
         </div>
       </div>
 
-      <div className="hairline overflow-hidden rounded-xl border bg-surface">
-        <div className="flex items-center gap-3 border-b bg-surface-raised px-4 py-3">
-          <Button size="icon" variant="ghost" onClick={() => void play("all")} disabled={busy === "all"}>
+      <div className="overflow-hidden rounded-xl border border-border bg-card shadow-xs">
+        <div className="flex items-center gap-3 border-b border-border bg-bg-selected/70 px-4 py-3">
+          <Button
+            size="icon"
+            variant="ghost"
+            className="size-7 rounded-lg text-strong hover:bg-card"
+            onClick={() => void play("all")}
+            disabled={busy === "all"}
+          >
             {busy === "all" ? (
-              <Loader2 className="size-4 animate-spin" />
+              <Loader2 className="size-3.5 animate-spin" />
             ) : playing === "all" ? (
-              <Pause className="size-4" />
+              <Pause className="size-3.5" />
             ) : (
-              <Play className="size-4" />
+              <Play className="size-3.5" />
             )}
           </Button>
-          <span className="text-sm">Play the whole book</span>
-          <span className="ml-auto font-mono text-xs text-muted-foreground">{fmt(totalMs)}</span>
+          <span className="text-[13px] font-medium text-strong">Play entire audiobook</span>
+          <span className="ml-auto font-mono text-[11px] text-subtle">{fmt(totalMs)}</span>
         </div>
         <ul className="divide-y divide-border">
           {project.chapters.map((chapter) => {
@@ -130,37 +147,39 @@ export function ListenStep({ project, onBack }: { project: ProjectState; onBack:
               <li
                 key={chapter.id}
                 className={cn(
-                  "flex items-center gap-3 px-4 py-3 text-sm",
-                  playing === chapter.id && "bg-surface-raised",
+                  "flex items-center gap-3 px-4 py-2.5 text-[13px] text-default transition-colors hover:bg-bg-selected/30",
+                  playing === chapter.id && "bg-bg-selected",
                 )}
               >
                 <Button
                   size="icon"
                   variant="ghost"
+                  className="size-7 rounded-lg text-subtle hover:text-strong hover:bg-card"
                   disabled={busy === chapter.id}
                   onClick={() => void play(chapter.id)}
                 >
                   {busy === chapter.id ? (
-                    <Loader2 className="size-4 animate-spin" />
+                    <Loader2 className="size-3.5 animate-spin" />
                   ) : playing === chapter.id ? (
-                    <Pause className="size-4" />
+                    <Pause className="size-3.5" />
                   ) : (
-                    <Play className="size-4" />
+                    <Play className="size-3.5" />
                   )}
                 </Button>
-                <span className="truncate">{chapter.title}</span>
-                <span className="ml-auto font-mono text-xs text-muted-foreground">{fmt(ms)}</span>
+                <span className="truncate text-strong font-medium">{chapter.title}</span>
+                <span className="ml-auto font-mono text-[11px] text-subtle">{fmt(ms)}</span>
                 <Button
                   size="icon"
                   variant="ghost"
+                  className="size-7 rounded-lg text-subtle hover:text-strong hover:bg-card"
                   disabled={busy === `dl-${chapter.id}`}
                   onClick={() => void download(chapter.id, chapter.title)}
                   aria-label={`Download ${chapter.title}`}
                 >
                   {busy === `dl-${chapter.id}` ? (
-                    <Loader2 className="size-4 animate-spin" />
+                    <Loader2 className="size-3.5 animate-spin" />
                   ) : (
-                    <Download className="size-4" />
+                    <Download className="size-3.5" />
                   )}
                 </Button>
               </li>

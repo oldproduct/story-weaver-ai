@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { Loader2, Mic2, RefreshCw } from "lucide-react";
+import { Database, Loader2, Mic2, RefreshCw, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -58,45 +58,62 @@ export function GenerateStep({
   const pct = progress.total ? Math.round((progress.done / progress.total) * 100) : 0;
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <div>
-        <h2 className="text-3xl">Recording the cast</h2>
-        <p className="mt-2 max-w-xl text-sm text-muted-foreground">
-          Each narration and dialogue span is rendered with its own voice and cached by content, so
-          changing one character later only re-records that character's lines.
+        <div className="inline-flex items-center gap-1.5 rounded-full border border-border bg-bg-selected px-2.5 py-0.5 text-[11px] font-medium text-default mb-2">
+          <Volume2 className="size-3 text-strong" />
+          Step 5 · Speech Synthesis
+        </div>
+        <h2 className="text-[18px] font-medium text-strong">Recording the audio cast</h2>
+        <p className="mt-1 max-w-xl text-[13px] text-default">
+          Each span is rendered with its assigned ElevenLabs voice. Generated clips are indexed and
+          cached by text hash, so future cast adjustments only regenerate modified lines.
         </p>
       </div>
 
-      <div className="hairline rounded-xl border bg-surface p-6">
-        <div className="flex items-center gap-3">
-          {running ? (
-            <Loader2 className="size-5 animate-spin text-brass" />
-          ) : (
-            <Mic2 className="size-5 text-brass" />
-          )}
+      <div className="rounded-xl border border-border bg-card p-5 shadow-xs">
+        <div className="flex items-center gap-3.5">
+          <div className="flex size-10 items-center justify-center rounded-xl bg-bg-selected border border-border text-strong shrink-0">
+            {running ? (
+              <Loader2 className="size-5 animate-spin text-strong" />
+            ) : (
+              <Mic2 className="size-5 text-strong" />
+            )}
+          </div>
           <div className="flex-1 min-w-0">
-            <p className="truncate text-sm">
-              {progress.current || "Preparing…"}{" "}
-              <span className="font-mono text-xs text-muted-foreground">
-                {progress.done}/{progress.total} clips
-              </span>
+            <div className="flex items-center justify-between gap-2">
+              <p className="truncate text-[13px] font-medium text-strong">
+                {progress.current ? `“${progress.current}…”` : running ? "Synthesizing audio clips…" : "Generation finished"}
+              </p>
+              <span className="font-mono text-[12px] font-medium text-strong">{pct}%</span>
+            </div>
+            <p className="text-[12px] text-subtle mt-0.5">
+              {progress.done} of {progress.total} narration and dialogue clips rendered
             </p>
           </div>
-          <span className="font-mono text-sm text-brass">{pct}%</span>
         </div>
-        <Progress value={pct} className="mt-4" />
-        <div className="mt-4 flex items-center justify-between text-xs text-muted-foreground">
-          <span>{progress.cached} clips reused from cache</span>
-          {running ? (
-            <Button size="sm" variant="ghost" onClick={() => (stopRef.current = true)}>
-              Pause
-            </Button>
-          ) : (
-            <Button size="sm" variant="secondary" onClick={() => void start()}>
-              <RefreshCw className="size-3.5" />
-              Resume
-            </Button>
-          )}
+
+        <Progress value={pct} className="mt-4 h-1.5 bg-[#F1EBE1] [&>div]:bg-[#7052FF]" />
+
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-3 text-[12px] border-t border-border/80 pt-3">
+          <div className="flex items-center gap-2 text-subtle">
+            <Database className="size-3.5 text-strong" />
+            <span>
+              <strong className="text-strong font-medium">{progress.cached}</strong> clips reused from IndexedDB
+            </span>
+          </div>
+          <div>
+            {running ? (
+              <Button size="sm" variant="ghost" className="h-7 text-[12px] text-subtle hover:text-strong" onClick={() => (stopRef.current = true)}>
+                Pause rendering
+              </Button>
+            ) : (
+              <Button size="sm" variant="secondary" className="h-7 text-[12px]" onClick={() => void start()}>
+                <RefreshCw className="size-3 mr-1" />
+                Resume
+              </Button>
+            )}
+          </div>
         </div>
       </div>
     </div>
