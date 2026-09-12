@@ -328,10 +328,12 @@ export function buildPlan(project: ProjectState): GenerationPlanItem[] {
   for (const seg of [...project.segments].sort((a, b) => a.order - b.order)) {
     const assignment = voiceForSegment(seg, project.characters, project.sharedVoiceId);
     if (!assignment) continue;
+    const text = stripVoiceTags(seg.text);
+    if (!text) continue;
     items.push({
       segmentId: seg.id,
-      key: clipKey(seg.text, assignment.voice, assignment.instructions),
-      text: seg.text,
+      key: clipKey(text, assignment.voice, assignment.instructions),
+      text,
       voice: assignment.voice,
       instructions: assignment.instructions,
     });
