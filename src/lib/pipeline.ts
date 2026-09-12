@@ -1,9 +1,10 @@
 import { analyzeChunk } from "./ai.functions";
 import { synthesizeClip } from "./tts.functions";
-import { base64ToPcm, concatPcm, durationMs, normalize, silence, trimSilence } from "./audio";
+import { applyFades, base64ToPcm, concatPcm, durationMs, normalize, silence, trimSilence } from "./audio";
 import { getClip, putClip } from "./clip-cache";
 import { hashKey, uid } from "./id";
 import { suggestVoice } from "./voices";
+import { stripVoiceTags } from "./voice-tags";
 import { SUPPORTING_ID, type CharacterProfile, type ProjectState, type Segment } from "./types";
 
 const CHUNK_SIZE = 24;
@@ -327,10 +328,12 @@ export function buildPlan(project: ProjectState): GenerationPlanItem[] {
   for (const seg of [...project.segments].sort((a, b) => a.order - b.order)) {
     const assignment = voiceForSegment(seg, project.characters, project.sharedVoiceId);
     if (!assignment) continue;
+    const text = stripVoiceTags(seg.text);
+    if (!text) continue;
     items.push({
       segmentId: seg.id,
-      key: clipKey(seg.text, assignment.voice, assignment.instructions),
-      text: seg.text,
+      key: clipKey(text, assignment.voice, assignment.instructions),
+      text,
       voice: assignment.voice,
       instructions: assignment.instructions,
     });
@@ -360,7 +363,7 @@ function parseRetryAfterMs(msg: string): number {
 }
 
 async function synthOne(item: GenerationPlanItem): Promise<Int16Array> {
-  const pieces = splitForTts(item.text);
+  const pieces = splitForTts(stripVoiceTags(item.text) || item.text);
   const parts: Int16Array[] = [];
   for (const piece of pieces) {
     let audio: string | null = null;
@@ -395,7 +398,7 @@ async function synthOne(item: GenerationPlanItem): Promise<Int16Array> {
     }
     if (!audio) throw new Error("The voice engine returned no audio.");
     parts.push(trimSilence(base64ToPcm(audio)));
-    if (pieces.length > 1) parts.push(silence(180));
+    if (pieces.length > 1) parts.push(silence(120));
   }
   return normalize(concatPcm(parts));
 }
@@ -433,9 +436,10 @@ export async function generateClips(
   return result;
 }
 
-const PAUSE_SAME = 180;
-const PAUSE_SPEAKER_CHANGE = 380;
-const PAUSE_PARAGRAPH = 300;
+/** Conversational gaps stay under 200ms so turns feel like real dialogue. */
+export const PAUSE_SAME = 120;
+export const PAUSE_SPEAKER_CHANGE = 150;
+export const PAUSE_PARAGRAPH = 140;
 
 export async function assembleChapter(
   project: ProjectState,
@@ -460,7 +464,7 @@ export async function assembleChapter(
             : PAUSE_SAME;
       parts.push(silence(gap));
     }
-    parts.push(pcm);
+    parts.push(applyFades(pcm));
     lastSpeaker = seg.speakerId;
   }
   return normalize(concatPcm(parts));
@@ -471,7 +475,7 @@ export async function assembleBook(project: ProjectState): Promise<Int16Array> {
   for (const chapter of project.chapters) {
     const pcm = await assembleChapter(project, chapter.id);
     if (pcm.length === 0) continue;
-    if (parts.length > 0) parts.push(silence(1100));
+    if (parts.length > 0) parts.push(silence(600));
     parts.push(pcm);
   }
   return concatPcm(parts);

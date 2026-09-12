@@ -1,5 +1,6 @@
 import { uid } from "./id";
 import type { Chapter, Segment } from "./types";
+import { isVoiceTagOnly, stripVoiceTags, voiceTagName } from "./voice-tags";
 
 const OPEN = ["\u201c", '"', "\u2018", "\u00ab", "\u201a", "\u201e"];
 const CLOSE: Record<string, string> = {
@@ -81,20 +82,34 @@ export function buildSegments(chapters: Chapter[]): Segment[] {
   const segments: Segment[] = [];
   let order = 0;
   for (const chapter of chapters) {
-    for (const paragraph of chapter.paragraphs) {
+    // A "(voice: Name)" tag on its own line applies to the paragraph after it.
+    let pendingVoice: string | null = null;
+    for (const rawParagraph of chapter.paragraphs) {
+      const tagName = voiceTagName(rawParagraph);
+      if (tagName && isVoiceTagOnly(rawParagraph)) {
+        pendingVoice = tagName;
+        continue;
+      }
+      const inlineVoice = tagName;
+      const paragraph = stripVoiceTags(rawParagraph);
+      if (!paragraph) continue;
+      const voice = inlineVoice ?? pendingVoice;
+      pendingVoice = null;
       for (const span of splitParagraph(paragraph)) {
         const text = span.kind === "narration" ? tidyNarration(span.text) : span.text.trim();
         if (!text || !/[\p{L}\p{N}]/u.test(text)) continue;
+        const kind = voice ? "dialogue" : span.kind;
+        const hint = span.hint ?? voice ?? undefined;
         segments.push({
           id: uid("seg"),
           chapterId: chapter.id,
           order: order++,
-          kind: span.kind,
+          kind,
           text,
           context: paragraph.slice(0, 600),
-          speakerId: span.kind === "narration" ? "narrator" : null,
-          confidence: span.kind === "narration" ? 1 : 0,
-          ...(span.hint ? { hint: span.hint } : {}),
+          speakerId: kind === "narration" ? "narrator" : null,
+          confidence: kind === "narration" ? 1 : 0,
+          ...(hint ? { hint } : {}),
         });
       }
     }

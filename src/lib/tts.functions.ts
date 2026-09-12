@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { assertSpeakableText, stripVoiceTags } from "./voice-tags";
 
 const SynthInput = z.object({
   text: z.string().min(1).max(4000),
@@ -19,6 +20,10 @@ export const synthesizeClip = createServerFn({ method: "POST" })
     const key = process.env["ELEVENLABS_API_KEY"];
     if (!key) throw new Error("The voice engine is not connected for this project.");
 
+    // Control tags such as "(voice: Riya)" are metadata — never speak them.
+    const spoken = assertSpeakableText(stripVoiceTags(data.text));
+    if (!spoken) throw new Error("Nothing to speak after removing voice metadata.");
+
     const res = await fetch(
       `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(data.voice)}?output_format=pcm_24000`,
       {
@@ -28,7 +33,7 @@ export const synthesizeClip = createServerFn({ method: "POST" })
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          text: data.text,
+          text: spoken,
           model_id: "eleven_multilingual_v2",
           voice_settings: {
             stability: 0.5,
