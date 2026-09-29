@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Check, Loader2, ScanSearch, Sparkles, Wand2 } from "lucide-react";
+import { Check, Loader2, Play, ScanSearch, Sparkles, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -16,7 +16,8 @@ import { alternationFill, assignSuggestedVoices, isSettled, recountCharacters } 
 import { updateProject } from "@/lib/store";
 import { uid } from "@/lib/id";
 import { cn } from "@/lib/utils";
-import { EMOTIONS } from "@/lib/delivery";
+import { EMOTIONS, LINE_SPEEDS, effectiveSpeed, ensureTerminalPunctuation, lineSpeedValue, voiceSettingsFor } from "@/lib/delivery";
+import { playSample } from "@/lib/preview";
 import { SUPPORTING_ID, type CharacterProfile, type EmotionType, type LineSpeed, type ProjectState, type Segment } from "@/lib/types";
 
 type Filter = "all" | "uncertain";
@@ -114,6 +115,30 @@ export function ReviewStep({
 
   const setDelivery = (id: string, fields: { emotion?: EmotionType; speed?: LineSpeed }) =>
     applySegments((segments) => segments.map((s) => (s.id === id ? { ...s, ...fields } : s)));
+
+  const [playingId, setPlayingId] = useState<string | null>(null);
+  const playLine = async (seg: Segment) => {
+    const character = project.characters.find((c) => c.id === seg.speakerId);
+    const voice = character?.voiceId ?? project.sharedVoiceId;
+    if (!voice) {
+      toast.error("This speaker has no voice yet. Pick one on the Speakers screen.");
+      return;
+    }
+    setPlayingId(seg.id);
+    try {
+      await playSample(
+        ensureTerminalPunctuation(seg.text),
+        voice,
+        character?.instructions ?? "",
+        effectiveSpeed(character, seg, project.globalSpeed ?? 1),
+        voiceSettingsFor(seg),
+      );
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Could not play this line.");
+    } finally {
+      setPlayingId(null);
+    }
+  };
 
   const addSpeaker = (ids: string[]) => {
     const name = window.prompt("Name for the new speaker")?.trim();
@@ -397,18 +422,30 @@ export function ReviewStep({
                   </SelectContent>
                 </Select>
                 <Select
-                  value={seg.speed ?? "normal"}
-                  onValueChange={(v) => setDelivery(seg.id, { speed: v as LineSpeed })}
+                  value={String(lineSpeedValue(seg.speed))}
+                  onValueChange={(v) => setDelivery(seg.id, { speed: Number(v) })}
                 >
-                  <SelectTrigger className="h-8 w-24 text-[12px]" aria-label="Line speed">
+                  <SelectTrigger className="h-8 w-20 text-[12px]" aria-label="Line speed">
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="slower">Slower</SelectItem>
-                    <SelectItem value="normal">Normal</SelectItem>
-                    <SelectItem value="faster">Faster</SelectItem>
+                    {LINE_SPEEDS.map((v) => (
+                      <SelectItem key={v} value={String(v)}>
+                        {v === 1 ? "1x" : `${v.toFixed(2)}x`}
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
+                <Button
+                  variant="secondary"
+                  size="icon"
+                  className="h-8 w-8"
+                  aria-label="Play line"
+                  disabled={playingId === seg.id}
+                  onClick={() => playLine(seg)}
+                >
+                  {playingId === seg.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                </Button>
               </div>
             </div>
           );

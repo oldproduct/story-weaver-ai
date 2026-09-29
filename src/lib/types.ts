@@ -35,7 +35,8 @@ export type EmotionType =
   | "flirty"
   | "sarcastic";
 
-export type LineSpeed = "slower" | "normal" | "faster";
+/** Per-line speed multiplier (0.75, 0.8, 1, 1.25, 1.5). Old projects may still hold the legacy words. */
+export type LineSpeed = number | "slower" | "normal" | "faster";
 
 export interface Chapter {
   id: string;

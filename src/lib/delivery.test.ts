@@ -7,8 +7,8 @@ describe("speed", () => {
   it("clamps to the supported range", () => {
     expect(clampSpeed(2)).toBe(1.2);
     expect(clampSpeed(0.2)).toBe(0.7);
-    expect(effectiveSpeed({ speed: 1.2 }, { speed: "faster", emotion: "excited" }, 1.2)).toBe(1.2);
-    expect(effectiveSpeed({ speed: 0.8 }, { speed: "slower" }, 0.8)).toBe(0.7);
+    expect(effectiveSpeed({ speed: 1.2 }, { speed: 1.5, emotion: "excited" }, 1.2)).toBe(1.2);
+    expect(effectiveSpeed({ speed: 0.8 }, { speed: 0.75 }, 0.8)).toBe(0.7);
   });
   it("defaults to normal speed", () => {
     expect(effectiveSpeed(undefined, {}, 1)).toBe(1);
