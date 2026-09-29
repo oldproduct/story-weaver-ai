@@ -5,6 +5,7 @@ import { getClip, putClip } from "./clip-cache";
 import { hashKey, uid } from "./id";
 import { suggestVoice } from "./voices";
 import { stripVoiceTags } from "./voice-tags";
+import { CHAPTER_PAUSE, effectiveSpeed, ensureTerminalPunctuation, pauseAfter, voiceSettingsFor } from "./delivery";
 import { SUPPORTING_ID, type CharacterProfile, type ProjectState, type Segment } from "./types";
 
 const CHUNK_SIZE = 24;
@@ -321,6 +322,9 @@ export interface GenerationPlanItem {
   text: string;
   voice: string;
   instructions: string;
+  speed: number;
+  stability: number;
+  style: number;
 }
 
 export function buildPlan(project: ProjectState): GenerationPlanItem[] {
@@ -328,14 +332,25 @@ export function buildPlan(project: ProjectState): GenerationPlanItem[] {
   for (const seg of [...project.segments].sort((a, b) => a.order - b.order)) {
     const assignment = voiceForSegment(seg, project.characters, project.sharedVoiceId);
     if (!assignment) continue;
-    const text = stripVoiceTags(seg.text);
-    if (!text) continue;
+    const stripped = stripVoiceTags(seg.text);
+    if (!stripped) continue;
+    const text = ensureTerminalPunctuation(stripped);
+    const character = project.characters.find((c) => c.id === seg.speakerId);
+    const speed = effectiveSpeed(character, seg, project.globalSpeed ?? 1);
+    const { stability, style } = voiceSettingsFor(seg);
+    const neutral = speed === 1 && (seg.emotion ?? "neutral") === "neutral";
     items.push({
       segmentId: seg.id,
-      key: clipKey(text, assignment.voice, assignment.instructions),
+      // Neutral, normal-speed lines keep their old cache key so existing clips are reused.
+      key: neutral
+        ? clipKey(text, assignment.voice, assignment.instructions)
+        : hashKey(text, assignment.voice, assignment.instructions, String(speed), seg.emotion ?? "neutral"),
       text,
       voice: assignment.voice,
       instructions: assignment.instructions,
+      speed,
+      stability,
+      style,
     });
   }
   return items;
@@ -373,7 +388,14 @@ async function synthOne(item: GenerationPlanItem): Promise<Int16Array> {
       try {
         const res = await withTimeout(
           synthesizeClip({
-            data: { text: piece, voice: item.voice, instructions: item.instructions, speed: 1 },
+            data: {
+              text: piece,
+              voice: item.voice,
+              instructions: item.instructions,
+              speed: item.speed,
+              stability: item.stability,
+              style: item.style,
+            },
           }),
           120_000,
           "narration clip",
@@ -450,22 +472,21 @@ export async function assembleChapter(
     .sort((a, b) => a.order - b.order);
   const parts: Int16Array[] = [];
   let lastSpeaker: string | null = null;
+  let lastSeg: Segment | null = null;
   for (const seg of segs) {
     const clip = project.clips[seg.id];
     if (!clip) continue;
     const pcm = await getClip(clip.key);
     if (!pcm) continue;
     if (parts.length > 0) {
-      const gap =
-        seg.speakerId !== lastSpeaker
-          ? PAUSE_SPEAKER_CHANGE
-          : seg.kind === "narration"
-            ? PAUSE_PARAGRAPH
-            : PAUSE_SAME;
-      parts.push(silence(gap));
+      const dialogueTurn =
+        seg.speakerId !== lastSpeaker && (seg.kind === "dialogue" || lastSeg?.kind === "dialogue");
+      const paragraphEnd = Boolean(lastSeg && lastSeg.context !== seg.context && !dialogueTurn);
+      parts.push(silence(pauseAfter(lastSeg?.text ?? "", { dialogueTurn, paragraphEnd })));
     }
     parts.push(applyFades(pcm));
     lastSpeaker = seg.speakerId;
+    lastSeg = seg;
   }
   return normalize(concatPcm(parts));
 }
@@ -475,7 +496,7 @@ export async function assembleBook(project: ProjectState): Promise<Int16Array> {
   for (const chapter of project.chapters) {
     const pcm = await assembleChapter(project, chapter.id);
     if (pcm.length === 0) continue;
-    if (parts.length > 0) parts.push(silence(600));
+    if (parts.length > 0) parts.push(silence(CHAPTER_PAUSE));
     parts.push(pcm);
   }
   return concatPcm(parts);

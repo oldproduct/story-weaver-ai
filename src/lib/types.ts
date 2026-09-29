@@ -18,7 +18,24 @@ export interface Segment {
   hint?: string;
   /** True when the user set this speaker by hand — auto-detect must not overwrite it. */
   manual?: boolean;
+  emotion?: EmotionType;
+  speed?: LineSpeed;
 }
+
+export type EmotionType =
+  | "neutral"
+  | "whispering"
+  | "angry"
+  | "sad"
+  | "crying"
+  | "laughing"
+  | "excited"
+  | "scared"
+  | "stern"
+  | "flirty"
+  | "sarcastic";
+
+export type LineSpeed = "slower" | "normal" | "faster";
 
 export interface Chapter {
   id: string;
