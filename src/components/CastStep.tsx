@@ -15,6 +15,35 @@ import { assignSuggestedVoices } from "@/lib/pipeline";
 import { updateProject } from "@/lib/store";
 import { SUPPORTING_ID, type CharacterProfile, type ProjectState } from "@/lib/types";
 import { VOICES } from "@/lib/voices";
+import { Slider } from "@/components/ui/slider";
+import { MAX_SPEED, MIN_SPEED, clampSpeed, speedLabel } from "@/lib/delivery";
+
+function SpeedControl({
+  value,
+  onChange,
+  label,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  label: string;
+}) {
+  return (
+    <div className="flex items-center gap-2" title={label}>
+      <Slider
+        className="w-24"
+        min={MIN_SPEED}
+        max={MAX_SPEED}
+        step={0.05}
+        value={[value]}
+        onValueChange={(v) => onChange(clampSpeed(v[0] ?? 1))}
+        aria-label={label}
+      />
+      <span className="w-20 font-mono text-[11px] text-subtle">
+        {value.toFixed(2)}x {speedLabel(value)}
+      </span>
+    </div>
+  );
+}
 
 function VoicePicker({
   value,
@@ -80,12 +109,12 @@ export function CastStep({ project, onDone }: { project: ProjectState; onDone: (
       return { ...p, characters: next };
     });
 
-  const preview = (voice: string | null, text: string) => {
+  const preview = (voice: string | null, text: string, speed = 1) => {
     if (!voice) {
       toast.error("Pick a voice first.");
       return;
     }
-    toast.promise(playSample(text, voice), {
+    toast.promise(playSample(text, voice, "", clampSpeed(speed * (project.globalSpeed ?? 1))), {
       loading: "Preparing audio preview…",
       success: "Playing sample",
       error: (e) => (e instanceof Error ? e.message : "Preview failed"),
@@ -138,6 +167,18 @@ export function CastStep({ project, onDone }: { project: ProjectState; onDone: (
         </span>
       </div>
 
+      <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-3.5 shadow-xs">
+        <div>
+          <h3 className="text-[13px] font-medium text-strong">Overall pace</h3>
+          <p className="text-[12px] text-default">Speeds up or slows down every speaker together.</p>
+        </div>
+        <SpeedControl
+          label="Overall pace"
+          value={project.globalSpeed ?? 1}
+          onChange={(v) => updateProject((p) => ({ ...p, globalSpeed: v }))}
+        />
+      </section>
+
       {/* Leads Roster */}
       <section className="space-y-2.5">
         {leads.map((c) => {
@@ -170,10 +211,15 @@ export function CastStep({ project, onDone }: { project: ProjectState; onDone: (
               </div>
 
               <div className="ml-auto flex items-center gap-2">
+                <SpeedControl
+                  label={`Speed for ${c.name}`}
+                  value={c.speed ?? 1}
+                  onChange={(v) => patch(c.id, { speed: v })}
+                />
                 <VoicePicker
                   value={c.voiceId}
                   onChange={(v) => patch(c.id, { voiceId: v })}
-                  onPreview={() => preview(c.voiceId, sampleFor(c.id))}
+                  onPreview={() => preview(c.voiceId, sampleFor(c.id), c.speed ?? 1)}
                 />
                 {!c.isNarrator && (
                   <Button

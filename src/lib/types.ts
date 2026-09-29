@@ -18,7 +18,24 @@ export interface Segment {
   hint?: string;
   /** True when the user set this speaker by hand — auto-detect must not overwrite it. */
   manual?: boolean;
+  emotion?: EmotionType;
+  speed?: LineSpeed;
 }
+
+export type EmotionType =
+  | "neutral"
+  | "whispering"
+  | "angry"
+  | "sad"
+  | "crying"
+  | "laughing"
+  | "excited"
+  | "scared"
+  | "stern"
+  | "flirty"
+  | "sarcastic";
+
+export type LineSpeed = "slower" | "normal" | "faster";
 
 export interface Chapter {
   id: string;
@@ -43,6 +60,8 @@ export interface CharacterProfile {
   role: "narrator" | "lead" | "supporting";
   voiceId: string | null;
   instructions: string;
+  /** Speaking speed 0.7–1.2, default 1. */
+  speed?: number;
 }
 
 export interface ClipRef {
@@ -62,6 +81,8 @@ export interface ProjectState {
   segments: Segment[];
   characters: CharacterProfile[];
   sharedVoiceId: string | null;
+  /** Overall pace multiplier applied to every speaker. */
+  globalSpeed?: number;
   clips: Record<string, ClipRef>;
   createdAt: number;
 }

@@ -7,6 +7,8 @@ const SynthInput = z.object({
   voice: z.string().min(1),
   instructions: z.string().max(600).default(""),
   speed: z.number().min(0.7).max(1.2).default(1),
+  stability: z.number().min(0).max(1).default(0.5),
+  style: z.number().min(0).max(1).default(0.3),
 });
 
 /**
@@ -36,9 +38,9 @@ export const synthesizeClip = createServerFn({ method: "POST" })
           text: spoken,
           model_id: "eleven_multilingual_v2",
           voice_settings: {
-            stability: 0.5,
+            stability: data.stability,
             similarity_boost: 0.75,
-            style: 0.3,
+            style: data.style,
             use_speaker_boost: true,
             speed: data.speed,
           },
