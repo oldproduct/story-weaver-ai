@@ -8,6 +8,21 @@ export function base64ToPcm(b64: string): Int16Array {
   return new Int16Array(bytes.buffer.slice(0, usable));
 }
 
+/** Speed audio up (factor > 1) or down by linear resampling. */
+export function changeRate(pcm: Int16Array, factor: number): Int16Array {
+  if (!Number.isFinite(factor) || Math.abs(factor - 1) < 0.01 || pcm.length < 2) return pcm;
+  const n = Math.max(1, Math.floor(pcm.length / factor));
+  const out = new Int16Array(n);
+  for (let i = 0; i < n; i++) {
+    const x = i * factor;
+    const j = Math.floor(x);
+    const a = pcm[j] ?? 0;
+    const b = pcm[Math.min(j + 1, pcm.length - 1)] ?? a;
+    out[i] = Math.round(a + (b - a) * (x - j));
+  }
+  return out;
+}
+
 export function silence(ms: number): Int16Array {
   return new Int16Array(Math.round((SAMPLE_RATE * ms) / 1000));
 }

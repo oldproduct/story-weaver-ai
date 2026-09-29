@@ -327,6 +327,8 @@ export interface GenerationPlanItem {
   speed: number;
   stability: number;
   style: number;
+  model: TtsModel;
+  emotionTag: string | null;
 }
 
 export function buildPlan(project: ProjectState): GenerationPlanItem[] {
@@ -340,19 +342,22 @@ export function buildPlan(project: ProjectState): GenerationPlanItem[] {
     const character = project.characters.find((c) => c.id === seg.speakerId);
     const speed = effectiveSpeed(character, seg, project.globalSpeed ?? 1);
     const { stability, style } = voiceSettingsFor(seg);
+    const { model, tag } = deliveryFor(seg);
     const neutral = speed === 1 && (seg.emotion ?? "neutral") === "neutral";
     items.push({
       segmentId: seg.id,
       // Neutral, normal-speed lines keep their old cache key so existing clips are reused.
       key: neutral
         ? clipKey(text, assignment.voice, assignment.instructions)
-        : hashKey(text, assignment.voice, assignment.instructions, String(speed), seg.emotion ?? "neutral"),
+        : hashKey(text, assignment.voice, assignment.instructions, String(speed), seg.emotion ?? "neutral", model),
       text,
       voice: assignment.voice,
       instructions: assignment.instructions,
       speed,
       stability,
       style,
+      model,
+      emotionTag: tag,
     });
   }
   return items;
@@ -397,6 +402,8 @@ async function synthOne(item: GenerationPlanItem): Promise<Int16Array> {
               speed: item.speed,
               stability: item.stability,
               style: item.style,
+              model: item.model,
+              ...(item.emotionTag ? { emotionTag: item.emotionTag as never } : {}),
             },
           }),
           120_000,
