@@ -33,3 +33,14 @@ describe("pauses", () => {
     expect(ensureTerminalPunctuation("Really?")).toBe("Really?");
   });
 });
+
+import { deliveryFor } from "./delivery";
+describe("emotion delivery", () => {
+  it("neutral stays on v2 with no cue", () => {
+    expect(deliveryFor({})).toEqual({ model: "eleven_multilingual_v2", tag: null });
+  });
+  it("emotions use the expressive model with a cue", () => {
+    expect(deliveryFor({ emotion: "whispering" })).toEqual({ model: "eleven_v3", tag: "[whispers]" });
+    expect(deliveryFor({ emotion: "laughing" }).tag).toBe("[laughs]");
+  });
+});

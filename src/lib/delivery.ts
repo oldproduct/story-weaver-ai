@@ -65,6 +65,28 @@ export function effectiveSpeed(
   return clampSpeed(base + emo);
 }
 
+export const EMOTION_TAGS: Record<EmotionType, string | null> = {
+  neutral: null,
+  whispering: "[whispers]",
+  angry: "[angry]",
+  sad: "[sad]",
+  crying: "[crying]",
+  laughing: "[laughs]",
+  excited: "[excited]",
+  scared: "[nervous]",
+  stern: "[serious]",
+  flirty: "[flirtatious]",
+  sarcastic: "[sarcastic]",
+};
+export const ALLOWED_TAGS = Object.values(EMOTION_TAGS).filter((t): t is string => !!t);
+export type TtsModel = "eleven_v3" | "eleven_multilingual_v2";
+
+/** Emotional lines go to the expressive model with a bracket cue; neutral stays on v2. */
+export function deliveryFor(seg: Pick<Segment, "emotion">): { model: TtsModel; tag: string | null } {
+  const tag = EMOTION_TAGS[seg.emotion ?? "neutral"] ?? null;
+  return tag ? { model: "eleven_v3", tag } : { model: "eleven_multilingual_v2", tag: null };
+}
+
 export function voiceSettingsFor(seg: Pick<Segment, "emotion">) {
   const p = EMOTION_PROFILES[seg.emotion ?? "neutral"] ?? EMOTION_PROFILES.neutral;
   return { stability: p.stability, style: p.style };

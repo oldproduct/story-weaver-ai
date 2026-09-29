@@ -16,7 +16,7 @@ import { alternationFill, assignSuggestedVoices, isSettled, recountCharacters } 
 import { updateProject } from "@/lib/store";
 import { uid } from "@/lib/id";
 import { cn } from "@/lib/utils";
-import { EMOTIONS, LINE_SPEEDS, effectiveSpeed, ensureTerminalPunctuation, lineSpeedValue, voiceSettingsFor } from "@/lib/delivery";
+import { EMOTIONS, deliveryFor, LINE_SPEEDS, effectiveSpeed, ensureTerminalPunctuation, lineSpeedValue, voiceSettingsFor } from "@/lib/delivery";
 import { playSample } from "@/lib/preview";
 import { SUPPORTING_ID, type CharacterProfile, type EmotionType, type LineSpeed, type ProjectState, type Segment } from "@/lib/types";
 
@@ -132,6 +132,7 @@ export function ReviewStep({
         character?.instructions ?? "",
         effectiveSpeed(character, seg, project.globalSpeed ?? 1),
         voiceSettingsFor(seg),
+        deliveryFor(seg),
       );
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Could not play this line.");

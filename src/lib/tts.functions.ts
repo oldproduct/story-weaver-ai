@@ -2,6 +2,8 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 import { assertSpeakableText, stripVoiceTags } from "./voice-tags";
 
+const TAGS = ["[whispers]","[angry]","[sad]","[crying]","[laughs]","[excited]","[nervous]","[serious]","[flirtatious]","[sarcastic]"] as const;
+
 const SynthInput = z.object({
   text: z.string().min(1).max(4000),
   voice: z.string().min(1),
@@ -9,6 +11,8 @@ const SynthInput = z.object({
   speed: z.number().min(0.7).max(1.2).default(1),
   stability: z.number().min(0).max(1).default(0.5),
   style: z.number().min(0).max(1).default(0.3),
+  model: z.enum(["eleven_multilingual_v2", "eleven_v3"]).default("eleven_multilingual_v2"),
+  emotionTag: z.enum(TAGS).optional(),
 });
 
 /**
@@ -34,7 +38,12 @@ export const synthesizeClip = createServerFn({ method: "POST" })
           "xi-api-key": key,
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({
+        body: JSON.stringify(data.model === "eleven_v3" ? {
+          // Cue is added after the metadata guard; it is a fixed allow-listed tag.
+          text: data.emotionTag ? `${data.emotionTag} ${spoken}` : spoken,
+          model_id: "eleven_v3",
+          voice_settings: { stability: 0.5, similarity_boost: 0.75, use_speaker_boost: true },
+        } : {
           text: spoken,
           model_id: "eleven_multilingual_v2",
           voice_settings: {
