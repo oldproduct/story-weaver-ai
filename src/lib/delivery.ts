@@ -34,7 +34,12 @@ export const EMOTION_PROFILES: Record<
   sarcastic: { stability: 0.55, style: 0.3, speedDelta: 0 },
 };
 
-const LINE_SPEED_DELTA: Record<LineSpeed, number> = { slower: -0.1, normal: 0, faster: 0.1 };
+const LEGACY_LINE_SPEED: Record<string, number> = { slower: 0.9, normal: 1, faster: 1.1 };
+export const LINE_SPEEDS = [0.75, 0.8, 1, 1.25, 1.5];
+export function lineSpeedValue(v: LineSpeed | undefined): number {
+  if (typeof v === "number" && Number.isFinite(v)) return v;
+  return LEGACY_LINE_SPEED[v ?? "normal"] ?? 1;
+}
 
 export function clampSpeed(n: number): number {
   if (!Number.isFinite(n)) return 1;
@@ -55,10 +60,9 @@ export function effectiveSpeed(
   seg: Pick<Segment, "speed" | "emotion">,
   globalSpeed = 1,
 ): number {
-  const base = (character?.speed ?? 1) * (globalSpeed || 1);
+  const base = (character?.speed ?? 1) * (globalSpeed || 1) * lineSpeedValue(seg.speed);
   const emo = EMOTION_PROFILES[seg.emotion ?? "neutral"]?.speedDelta ?? 0;
-  const line = LINE_SPEED_DELTA[seg.speed ?? "normal"] ?? 0;
-  return clampSpeed(base + emo + line);
+  return clampSpeed(base + emo);
 }
 
 export function voiceSettingsFor(seg: Pick<Segment, "emotion">) {
