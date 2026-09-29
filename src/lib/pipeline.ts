@@ -1,11 +1,11 @@
 import { analyzeChunk } from "./ai.functions";
 import { synthesizeClip } from "./tts.functions";
-import { applyFades, base64ToPcm, concatPcm, durationMs, normalize, silence, trimSilence } from "./audio";
+import { applyFades, base64ToPcm, changeRate, concatPcm, durationMs, normalize, silence, trimSilence } from "./audio";
 import { getClip, putClip } from "./clip-cache";
 import { hashKey, uid } from "./id";
 import { suggestVoice } from "./voices";
 import { stripVoiceTags } from "./voice-tags";
-import { CHAPTER_PAUSE, effectiveSpeed, ensureTerminalPunctuation, pauseAfter, voiceSettingsFor } from "./delivery";
+import { CHAPTER_PAUSE, deliveryFor, type TtsModel, effectiveSpeed, ensureTerminalPunctuation, pauseAfter, voiceSettingsFor } from "./delivery";
 import { SUPPORTING_ID, type CharacterProfile, type EmotionType, type ProjectState, type Segment } from "./types";
 
 const CHUNK_SIZE = 24;
@@ -431,7 +431,9 @@ async function synthOne(item: GenerationPlanItem): Promise<Int16Array> {
     parts.push(trimSilence(base64ToPcm(audio)));
     if (pieces.length > 1) parts.push(silence(120));
   }
-  return normalize(concatPcm(parts));
+  const joined = normalize(concatPcm(parts));
+  // The expressive model ignores speed, so apply it to the audio afterwards.
+  return item.model === "eleven_v3" ? changeRate(joined, item.speed) : joined;
 }
 
 export async function generateClips(
