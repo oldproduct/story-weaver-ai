@@ -6,7 +6,7 @@ import { hashKey, uid } from "./id";
 import { suggestVoice } from "./voices";
 import { stripVoiceTags } from "./voice-tags";
 import { CHAPTER_PAUSE, effectiveSpeed, ensureTerminalPunctuation, pauseAfter, voiceSettingsFor } from "./delivery";
-import { SUPPORTING_ID, type CharacterProfile, type ProjectState, type Segment } from "./types";
+import { SUPPORTING_ID, type CharacterProfile, type EmotionType, type ProjectState, type Segment } from "./types";
 
 const CHUNK_SIZE = 24;
 
@@ -55,7 +55,7 @@ export async function runAnalysis(
   const passageMode = dialogue.length < 3;
   const targets = passageMode ? project.segments : dialogue;
   const roster = new Map<string, RosterEntry>();
-  const assignments = new Map<string, { speaker: string; confidence: number }>();
+  const assignments = new Map<string, { speaker: string; confidence: number; emotion?: string }>();
 
   const chunks: Segment[][] = [];
   for (let i = 0; i < targets.length; i += CHUNK_SIZE) {
@@ -120,7 +120,7 @@ export async function runAnalysis(
     for (const a of result.assignments) {
       const seg = chunk[a.i];
       if (!seg) continue;
-      assignments.set(seg.id, { speaker: a.speaker, confidence: a.confidence });
+      assignments.set(seg.id, { speaker: a.speaker, confidence: a.confidence, ...(a.emotion ? { emotion: a.emotion } : {}) });
     }
 
     done += chunk.length;
@@ -195,8 +195,10 @@ export async function runAnalysis(
 
   const chapterIndex = new Map(project.chapters.map((c) => [c.id, c.index]));
 
-  const segments = project.segments.map((seg) => {
-    const a = assignments.get(seg.id);
+  const segments = project.segments.map((raw) => {
+    const a = assignments.get(raw.id);
+    const seg: Segment =
+      a?.emotion && !raw.emotion ? { ...raw, emotion: a.emotion as EmotionType } : raw;
     const named = a && normName(a.speaker) !== "narrator" ? byLookup.get(normName(a.speaker)) : undefined;
     if (seg.kind === "narration" && !named) {
       narrator.lineCount += 1;

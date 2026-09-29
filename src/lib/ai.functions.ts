@@ -24,8 +24,10 @@ const AnalyzeInput = z.object({
   mode: z.enum(["dialogue", "passage"]).default("dialogue"),
 });
 
+const EMOTION_SET = new Set(["neutral","whispering","angry","sad","crying","laughing","excited","scared","stern","flirty","sarcastic"]);
+
 export interface AnalyzeResult {
-  assignments: Array<{ i: number; speaker: string; confidence: number }>;
+  assignments: Array<{ i: number; speaker: string; confidence: number; emotion?: string }>;
   characters: Array<z.infer<typeof RosterEntry>>;
 }
 
@@ -43,7 +45,7 @@ Respond with JSON only, no prose, in this exact shape:
 {"assignments":[{"i":0,"speaker":"Elena Vance","confidence":0.9}],
  "characters":[{"name":"Elena Vance","aliases":["Elena","Dr. Vance"],"gender":"female","ageRange":"30s","description":"clipped, guarded surgeon"}]}
 "characters" must contain every speaker you used in assignments, including ones already in the roster (repeat them unchanged unless you learned something new).
-Some lines include a "hint" field taken from a script-style cue in the text (e.g. "RAM: ..."). Trust the hint unless the text clearly contradicts it, but still normalise it to a canonical name.`;
+Some lines include a "hint" field taken from a script-style cue in the text (e.g. "RAM: ..."). Trust the hint unless the text clearly contradicts it, but still normalise it to a canonical name.\nAlso give each assignment an "emotion" for how the line should be performed, one of: neutral, whispering, angry, sad, crying, laughing, excited, scared, stern, flirty, sarcastic. Use "neutral" unless the text clearly signals otherwise.`;
 
 const PASSAGE_SYSTEM = `You are a casting engine for audiobook production working on text that has NO quotation marks: a poem, song, play/script, monologue, or plain prose.
 You receive numbered passages (a verse line, a script line, or a paragraph) with context, plus the roster discovered so far.
@@ -58,7 +60,7 @@ Your job:
 Respond with JSON only, no prose, in this exact shape:
 {"assignments":[{"i":0,"speaker":"The Traveller","confidence":0.8}],
  "characters":[{"name":"The Traveller","aliases":[],"gender":"male","ageRange":"adult","description":"weary, searching"}]}
-"characters" must contain every speaker you used in assignments except "Narrator", including ones already in the roster.`;
+"characters" must contain every speaker you used in assignments except "Narrator", including ones already in the roster.\nAlso give each assignment an "emotion" for how the line should be performed, one of: neutral, whispering, angry, sad, crying, laughing, excited, scared, stern, flirty, sarcastic. Use "neutral" unless the text clearly signals otherwise.`;
 
 function parseJson(raw: string): unknown {
   const trimmed = raw.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "");
@@ -123,6 +125,7 @@ export const analyzeChunk = createServerFn({ method: "POST" })
               i: a.i,
               speaker: a.speaker.trim(),
               confidence: Math.max(0, Math.min(1, Number(a.confidence) || 0.5)),
+              ...(typeof a.emotion === "string" && EMOTION_SET.has(a.emotion) ? { emotion: a.emotion } : {}),
             }))
         : [],
       characters: Array.isArray(parsed.characters)

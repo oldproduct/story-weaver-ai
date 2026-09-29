@@ -16,7 +16,8 @@ import { alternationFill, assignSuggestedVoices, isSettled, recountCharacters } 
 import { updateProject } from "@/lib/store";
 import { uid } from "@/lib/id";
 import { cn } from "@/lib/utils";
-import { SUPPORTING_ID, type CharacterProfile, type ProjectState, type Segment } from "@/lib/types";
+import { EMOTIONS } from "@/lib/delivery";
+import { SUPPORTING_ID, type CharacterProfile, type EmotionType, type LineSpeed, type ProjectState, type Segment } from "@/lib/types";
 
 type Filter = "all" | "uncertain";
 
@@ -110,6 +111,9 @@ export function ReviewStep({
       ),
     );
   };
+
+  const setDelivery = (id: string, fields: { emotion?: EmotionType; speed?: LineSpeed }) =>
+    applySegments((segments) => segments.map((s) => (s.id === id ? { ...s, ...fields } : s)));
 
   const addSpeaker = (ids: string[]) => {
     const name = window.prompt("Name for the new speaker")?.trim();
@@ -375,6 +379,34 @@ export function ReviewStep({
                       </SelectItem>
                     ))}
                     <SelectItem value="__new">New speaker…</SelectItem>
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={seg.emotion ?? "neutral"}
+                  onValueChange={(v) => setDelivery(seg.id, { emotion: v as EmotionType })}
+                >
+                  <SelectTrigger className="h-8 w-28 text-[12px] capitalize" aria-label="Emotion">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EMOTIONS.map((e) => (
+                      <SelectItem key={e} value={e} className="capitalize">
+                        {e}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <Select
+                  value={seg.speed ?? "normal"}
+                  onValueChange={(v) => setDelivery(seg.id, { speed: v as LineSpeed })}
+                >
+                  <SelectTrigger className="h-8 w-24 text-[12px]" aria-label="Line speed">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="slower">Slower</SelectItem>
+                    <SelectItem value="normal">Normal</SelectItem>
+                    <SelectItem value="faster">Faster</SelectItem>
                   </SelectContent>
                 </Select>
               </div>

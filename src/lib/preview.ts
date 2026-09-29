@@ -13,13 +13,13 @@ export function stopPreview() {
   }
 }
 
-export async function playSample(text: string, voice: string, instructions = ""): Promise<void> {
+export async function playSample(text: string, voice: string, instructions = "", speed = 1): Promise<void> {
   const trimmed = (text.trim() || HINDI_SAMPLE).slice(0, 240);
-  const key = `preview-${hashKey(trimmed, voice, instructions)}`;
+  const key = `preview-${hashKey(trimmed, voice, instructions, ...(speed === 1 ? [] : [String(speed)]))}`;
   let pcm = await getClip(key);
   if (!pcm) {
     const res = await synthesizeClip({
-      data: { text: trimmed, voice, instructions, speed: 1 },
+      data: { text: trimmed, voice, instructions, speed },
     });
     pcm = base64ToPcm(res.audio);
     await putClip(key, pcm);
