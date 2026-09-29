@@ -21,17 +21,17 @@ export const EMOTION_PROFILES: Record<
   EmotionType,
   { stability: number; style: number; speedDelta: number }
 > = {
-  neutral: { stability: 0.5, style: 0.3, speedDelta: 0 },
-  whispering: { stability: 0.75, style: 0.15, speedDelta: -0.05 },
-  angry: { stability: 0.3, style: 0.7, speedDelta: 0.05 },
-  sad: { stability: 0.6, style: 0.45, speedDelta: -0.08 },
-  crying: { stability: 0.3, style: 0.65, speedDelta: -0.1 },
-  laughing: { stability: 0.35, style: 0.6, speedDelta: 0.03 },
-  excited: { stability: 0.35, style: 0.65, speedDelta: 0.07 },
-  scared: { stability: 0.3, style: 0.55, speedDelta: 0.06 },
-  stern: { stability: 0.7, style: 0.4, speedDelta: -0.03 },
-  flirty: { stability: 0.45, style: 0.55, speedDelta: -0.03 },
-  sarcastic: { stability: 0.45, style: 0.55, speedDelta: 0 },
+  neutral: { stability: 0.55, style: 0.15, speedDelta: 0 },
+  whispering: { stability: 0.65, style: 0.1, speedDelta: -0.04 },
+  angry: { stability: 0.45, style: 0.35, speedDelta: 0.04 },
+  sad: { stability: 0.6, style: 0.25, speedDelta: -0.05 },
+  crying: { stability: 0.45, style: 0.35, speedDelta: -0.06 },
+  laughing: { stability: 0.45, style: 0.3, speedDelta: 0.02 },
+  excited: { stability: 0.45, style: 0.35, speedDelta: 0.04 },
+  scared: { stability: 0.45, style: 0.3, speedDelta: 0.04 },
+  stern: { stability: 0.65, style: 0.25, speedDelta: -0.02 },
+  flirty: { stability: 0.55, style: 0.3, speedDelta: -0.02 },
+  sarcastic: { stability: 0.55, style: 0.3, speedDelta: 0 },
 };
 
 const LINE_SPEED_DELTA: Record<LineSpeed, number> = { slower: -0.1, normal: 0, faster: 0.1 };

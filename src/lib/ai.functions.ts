@@ -42,10 +42,10 @@ Your job:
 5. confidence is 0..1: 1.0 for an explicit tag ("said Elena"), ~0.7 for a clear back-and-forth inference, <0.4 when guessing.
 
 Respond with JSON only, no prose, in this exact shape:
-{"assignments":[{"i":0,"speaker":"Elena Vance","confidence":0.9}],
+{"assignments":[{"i":0,"speaker":"Elena Vance","confidence":0.9,"emotion":"stern"}],
  "characters":[{"name":"Elena Vance","aliases":["Elena","Dr. Vance"],"gender":"female","ageRange":"30s","description":"clipped, guarded surgeon"}]}
 "characters" must contain every speaker you used in assignments, including ones already in the roster (repeat them unchanged unless you learned something new).
-Some lines include a "hint" field taken from a script-style cue in the text (e.g. "RAM: ..."). Trust the hint unless the text clearly contradicts it, but still normalise it to a canonical name.\nAlso give each assignment an "emotion" for how the line should be performed, one of: neutral, whispering, angry, sad, crying, laughing, excited, scared, stern, flirty, sarcastic. Use "neutral" unless the text clearly signals otherwise.`;
+Some lines include a "hint" field taken from a script-style cue in the text (e.g. "RAM: ..."). Trust the hint unless the text clearly contradicts it, but still normalise it to a canonical name.\nAlso give each assignment an "emotion" for how the line should be performed, one of: neutral, whispering, angry, sad, crying, laughing, excited, scared, stern, flirty, sarcastic. Read cues in the line and its context, including Hindi ones (चिल्लाकर/गुस्से में = angry, फुसफुसाकर/धीरे से = whispering, रोते हुए/सिसकते हुए = crying, उदास = sad, हँसते हुए/खिलखिलाकर = laughing, डरते हुए/काँपती आवाज़ = scared, खुशी से/उत्साह से = excited, "!" exclamations usually excited or angry). Every assignment MUST include "emotion". Use "neutral" only when there is no emotional cue.`;
 
 const PASSAGE_SYSTEM = `You are a casting engine for audiobook production working on text that has NO quotation marks: a poem, song, play/script, monologue, or plain prose.
 You receive numbered passages (a verse line, a script line, or a paragraph) with context, plus the roster discovered so far.
@@ -58,9 +58,9 @@ Your job:
 5. confidence is 0..1: 1.0 for an explicit script cue, ~0.7 for a clear inference, <0.4 when guessing.
 
 Respond with JSON only, no prose, in this exact shape:
-{"assignments":[{"i":0,"speaker":"The Traveller","confidence":0.8}],
+{"assignments":[{"i":0,"speaker":"The Traveller","confidence":0.8,"emotion":"sad"}],
  "characters":[{"name":"The Traveller","aliases":[],"gender":"male","ageRange":"adult","description":"weary, searching"}]}
-"characters" must contain every speaker you used in assignments except "Narrator", including ones already in the roster.\nAlso give each assignment an "emotion" for how the line should be performed, one of: neutral, whispering, angry, sad, crying, laughing, excited, scared, stern, flirty, sarcastic. Use "neutral" unless the text clearly signals otherwise.`;
+"characters" must contain every speaker you used in assignments except "Narrator", including ones already in the roster.\nAlso give each assignment an "emotion" for how the line should be performed, one of: neutral, whispering, angry, sad, crying, laughing, excited, scared, stern, flirty, sarcastic. Read cues in the line and its context, including Hindi ones (चिल्लाकर/गुस्से में = angry, फुसफुसाकर/धीरे से = whispering, रोते हुए/सिसकते हुए = crying, उदास = sad, हँसते हुए/खिलखिलाकर = laughing, डरते हुए/काँपती आवाज़ = scared, खुशी से/उत्साह से = excited, "!" exclamations usually excited or angry). Every assignment MUST include "emotion". Use "neutral" only when there is no emotional cue.`;
 
 function parseJson(raw: string): unknown {
   const trimmed = raw.trim().replace(/^```(?:json)?/i, "").replace(/```$/, "");
@@ -125,7 +125,7 @@ export const analyzeChunk = createServerFn({ method: "POST" })
               i: a.i,
               speaker: a.speaker.trim(),
               confidence: Math.max(0, Math.min(1, Number(a.confidence) || 0.5)),
-              ...(typeof a.emotion === "string" && EMOTION_SET.has(a.emotion) ? { emotion: a.emotion } : {}),
+              ...(typeof a.emotion === "string" && EMOTION_SET.has(a.emotion.toLowerCase().trim()) ? { emotion: a.emotion.toLowerCase().trim() } : {}),
             }))
         : [],
       characters: Array.isArray(parsed.characters)
