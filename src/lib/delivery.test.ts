@@ -1,0 +1,35 @@
+import { describe, expect, it } from "vitest";
+import { clampSpeed, effectiveSpeed, ensureTerminalPunctuation, pauseAfter } from "./delivery";
+
+const mid = () => 0.5; // no jitter
+
+describe("speed", () => {
+  it("clamps to the supported range", () => {
+    expect(clampSpeed(2)).toBe(1.2);
+    expect(clampSpeed(0.2)).toBe(0.7);
+    expect(effectiveSpeed({ speed: 1.2 }, { speed: "faster", emotion: "excited" }, 1.2)).toBe(1.2);
+    expect(effectiveSpeed({ speed: 0.8 }, { speed: "slower" }, 0.8)).toBe(0.7);
+  });
+  it("defaults to normal speed", () => {
+    expect(effectiveSpeed(undefined, {}, 1)).toBe(1);
+  });
+});
+
+describe("pauses", () => {
+  it("scales with punctuation", () => {
+    expect(pauseAfter("नमस्ते,", { jitter: mid })).toBe(120);
+    expect(pauseAfter("वह चला गया।", { jitter: mid })).toBe(300);
+    expect(pauseAfter("क्या?", { jitter: mid })).toBe(350);
+    expect(pauseAfter("End.", { paragraphEnd: true, jitter: mid })).toBe(600);
+  });
+  it("keeps dialogue turns under 200ms even with jitter", () => {
+    for (const j of [0, 0.5, 0.999]) {
+      expect(pauseAfter("हाँ!", { dialogueTurn: true, jitter: () => j })).toBeLessThan(200);
+    }
+  });
+  it("adds a missing full stop", () => {
+    expect(ensureTerminalPunctuation("बहुत बढ़िया, टीम")).toBe("बहुत बढ़िया, टीम।");
+    expect(ensureTerminalPunctuation("Done")).toBe("Done.");
+    expect(ensureTerminalPunctuation("Really?")).toBe("Really?");
+  });
+});
