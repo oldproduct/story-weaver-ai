@@ -60,6 +60,8 @@ export interface CharacterProfile {
   role: "narrator" | "lead" | "supporting";
   voiceId: string | null;
   instructions: string;
+  /** Speaking speed 0.7–1.2, default 1. */
+  speed?: number;
 }
 
 export interface ClipRef {
@@ -79,6 +81,8 @@ export interface ProjectState {
   segments: Segment[];
   characters: CharacterProfile[];
   sharedVoiceId: string | null;
+  /** Overall pace multiplier applied to every speaker. */
+  globalSpeed?: number;
   clips: Record<string, ClipRef>;
   createdAt: number;
 }
