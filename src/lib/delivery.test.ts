@@ -44,3 +44,11 @@ describe("emotion delivery", () => {
     expect(deliveryFor({ emotion: "laughing" }).tag).toBe("[laughs]");
   });
 });
+
+import { looksLikeBabble } from "./delivery";
+describe("babble guard", () => {
+  it("flags audio far longer than the text", () => {
+    expect(looksLikeBabble("हाँ।", 5000)).toBe(true);
+    expect(looksLikeBabble("वृद्ध और तरुण एक चटाई पर बैठते हैं।", 2500)).toBe(false);
+  });
+});

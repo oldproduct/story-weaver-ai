@@ -119,3 +119,14 @@ export function pauseAfter(
 }
 
 export const CHAPTER_PAUSE = 1500;
+
+/** Longest believable clip for this text. Longer audio means the voice babbled. */
+export function maxPlausibleMs(text: string): number {
+  const chars = text.replace(/\s+/g, "").length;
+  return 1500 + chars * 160;
+}
+export function looksLikeBabble(text: string, ms: number): boolean {
+  return ms > maxPlausibleMs(text);
+}
+/** Very short lines are unstable on the expressive model. */
+export const MIN_V3_CHARS = 20;
