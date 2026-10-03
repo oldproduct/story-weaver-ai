@@ -39,9 +39,9 @@ describe("emotion delivery", () => {
   it("neutral stays on v2 with no cue", () => {
     expect(deliveryFor({})).toEqual({ model: "eleven_multilingual_v2", tag: null });
   });
-  it("emotional lines also use the stable v2 model", () => {
-    expect(deliveryFor({ emotion: "whispering" })).toEqual({ model: "eleven_multilingual_v2", tag: null });
-    expect(deliveryFor({ emotion: "laughing" }).model).toBe("eleven_multilingual_v2");
+  it("emotional lines use the expressive v3 model with a cue", () => {
+    expect(deliveryFor({ emotion: "whispering" })).toEqual({ model: "eleven_v3", tag: "[whispers]" });
+    expect(deliveryFor({ emotion: "laughing" }).model).toBe("eleven_v3");
   });
 });
 

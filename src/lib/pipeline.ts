@@ -350,7 +350,7 @@ export function buildPlan(project: ProjectState): GenerationPlanItem[] {
       // Neutral, normal-speed lines keep their old cache key so existing clips are reused.
       key: neutral
         ? clipKey(text, assignment.voice, assignment.instructions)
-        : hashKey(text, assignment.voice, assignment.instructions, String(speed), seg.emotion ?? "neutral", model, ...(model === "eleven_v3" ? ["guard2"] : [])),
+        : hashKey(text, assignment.voice, assignment.instructions, String(speed), seg.emotion ?? "neutral", model, ...(model === "eleven_v3" ? ["guard3"] : [])),
       text,
       voice: assignment.voice,
       instructions: assignment.instructions,
@@ -413,8 +413,8 @@ async function synthOne(item: GenerationPlanItem): Promise<Int16Array> {
           120_000,
           "narration clip",
         );
-        if (looksLikeBabble(piece, durationMs(base64ToPcm(res.audio))) && babbleRetries < 2) {
-          // Robotic/gibberish output: retry once, then fall back to the stable model.
+        if (looksLikeBabble(piece, durationMs(trimSilence(base64ToPcm(res.audio)))) && babbleRetries < 2) {
+          // Gibberish output: retry once on v3, then fall back to the stable model.
           babbleRetries++;
           if (babbleRetries === 2) model = "eleven_multilingual_v2";
           continue;
@@ -438,13 +438,11 @@ async function synthOne(item: GenerationPlanItem): Promise<Int16Array> {
       }
     }
     if (!audio) throw new Error("The voice engine returned no audio.");
-    const pcm = trimSilence(base64ToPcm(audio));
-    parts.push(model === "eleven_v3" ? changeRate(pcm, item.speed) : pcm);
+    // No post-recording resampling: it shifted pitch and caused the robotic/metallic sound.
+    parts.push(trimSilence(base64ToPcm(audio)));
     if (pieces.length > 1) parts.push(silence(120));
   }
-  const joined = normalize(concatPcm(parts));
-  // The expressive model ignores speed, so apply it to the audio afterwards.
-  return joined;
+  return normalize(concatPcm(parts));
 }
 
 export async function generateClips(
