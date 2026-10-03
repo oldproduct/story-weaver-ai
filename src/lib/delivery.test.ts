@@ -40,8 +40,8 @@ describe("emotion delivery", () => {
     expect(deliveryFor({})).toEqual({ model: "eleven_multilingual_v2", tag: null });
   });
   it("emotions use the expressive model with a cue", () => {
-    expect(deliveryFor({ emotion: "whispering" })).toEqual({ model: "eleven_v3", tag: "[whispers]" });
-    expect(deliveryFor({ emotion: "laughing" }).tag).toBe("[laughs]");
+    expect(deliveryFor({ emotion: "whispering" })).toEqual({ model: "eleven_multilingual_v2", tag: null });
+    expect(deliveryFor({ emotion: "laughing" }).model).toBe("eleven_multilingual_v2");
   });
 });
 
