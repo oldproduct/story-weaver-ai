@@ -10,10 +10,12 @@ const LineSchema = z.object({
 
 const RosterEntry = z.object({
   name: z.string(),
-  aliases: z.array(z.string()).default([]),
-  gender: z.enum(["male", "female", "unknown"]).default("unknown"),
-  ageRange: z.string().default("adult"),
-  description: z.string().default(""),
+  // The AI sometimes returns values outside the schema (e.g. gender "neutral", null fields).
+  // Fall back to safe defaults instead of crashing the whole analysis.
+  aliases: z.array(z.string()).catch([]),
+  gender: z.enum(["male", "female", "unknown"]).catch("unknown"),
+  ageRange: z.string().catch("adult"),
+  description: z.string().catch(""),
 });
 
 const AnalyzeInput = z.object({
