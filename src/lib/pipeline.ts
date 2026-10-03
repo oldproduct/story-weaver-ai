@@ -350,7 +350,7 @@ export function buildPlan(project: ProjectState): GenerationPlanItem[] {
       // Neutral, normal-speed lines keep their old cache key so existing clips are reused.
       key: neutral
         ? clipKey(text, assignment.voice, assignment.instructions)
-        : hashKey(text, assignment.voice, assignment.instructions, String(speed), seg.emotion ?? "neutral", model),
+        : hashKey(text, assignment.voice, assignment.instructions, String(speed), seg.emotion ?? "neutral", model, ...(model === "eleven_v3" ? ["guard2"] : [])),
       text,
       voice: assignment.voice,
       instructions: assignment.instructions,
