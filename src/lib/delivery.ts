@@ -81,10 +81,12 @@ export const EMOTION_TAGS: Record<EmotionType, string | null> = {
 export const ALLOWED_TAGS = Object.values(EMOTION_TAGS).filter((t): t is string => !!t);
 export type TtsModel = "eleven_v3" | "eleven_multilingual_v2";
 
-/** Emotional lines go to the expressive model with a bracket cue; neutral stays on v2. */
-export function deliveryFor(seg: Pick<Segment, "emotion">): { model: TtsModel; tag: string | null } {
-  const tag = EMOTION_TAGS[seg.emotion ?? "neutral"] ?? null;
-  return tag ? { model: "eleven_v3", tag } : { model: "eleven_multilingual_v2", tag: null };
+/**
+ * Every line uses the stable multilingual v2 model. The expressive v3 model
+ * produced gibberish on Hindi, so emotion is expressed via stability/style only.
+ */
+export function deliveryFor(_seg: Pick<Segment, "emotion">): { model: TtsModel; tag: string | null } {
+  return { model: "eleven_multilingual_v2", tag: null };
 }
 
 export function voiceSettingsFor(seg: Pick<Segment, "emotion">) {
