@@ -42,6 +42,8 @@ export const synthesizeClip = createServerFn({ method: "POST" })
           // Cue is added after the metadata guard; it is a fixed allow-listed tag.
           text: data.emotionTag ? `${data.emotionTag} ${spoken}` : spoken,
           model_id: "eleven_v3",
+          // Pin Hindi so the expressive model doesn't drift into another language.
+          ...(/[\u0900-\u097F]/.test(spoken) ? { language_code: "hi" } : {}),
           voice_settings: { stability: 0.5, similarity_boost: 0.75, use_speaker_boost: true },
         } : {
           text: spoken,

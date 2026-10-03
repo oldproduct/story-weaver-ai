@@ -1,3 +1,4 @@
+import { looksLikeBabble, MIN_V3_CHARS } from "./delivery";
 import { analyzeChunk } from "./ai.functions";
 import { synthesizeClip } from "./tts.functions";
 import { applyFades, base64ToPcm, changeRate, concatPcm, durationMs, normalize, silence, trimSilence } from "./audio";
@@ -389,6 +390,9 @@ async function synthOne(item: GenerationPlanItem): Promise<Int16Array> {
   const parts: Int16Array[] = [];
   for (const piece of pieces) {
     let audio: string | null = null;
+    // Short lines on the expressive model tend to come out as gibberish.
+    let model = item.model === "eleven_v3" && piece.replace(/\s+/g, "").length < MIN_V3_CHARS ? "eleven_multilingual_v2" as const : item.model;
+    let babbleRetries = 0;
     const MAX_ATTEMPTS = 7;
     for (let attempt = 0; attempt < MAX_ATTEMPTS; attempt++) {
       await waitForCooldown();
@@ -402,13 +406,19 @@ async function synthOne(item: GenerationPlanItem): Promise<Int16Array> {
               speed: item.speed,
               stability: item.stability,
               style: item.style,
-              model: item.model,
-              ...(item.emotionTag ? { emotionTag: item.emotionTag as never } : {}),
+              model,
+              ...(model === "eleven_v3" && item.emotionTag ? { emotionTag: item.emotionTag as never } : {}),
             },
           }),
           120_000,
           "narration clip",
         );
+        if (looksLikeBabble(piece, durationMs(base64ToPcm(res.audio))) && babbleRetries < 2) {
+          // Robotic/gibberish output: retry once, then fall back to the stable model.
+          babbleRetries++;
+          if (babbleRetries === 2) model = "eleven_multilingual_v2";
+          continue;
+        }
         audio = res.audio;
         break;
       } catch (err) {
@@ -428,12 +438,13 @@ async function synthOne(item: GenerationPlanItem): Promise<Int16Array> {
       }
     }
     if (!audio) throw new Error("The voice engine returned no audio.");
-    parts.push(trimSilence(base64ToPcm(audio)));
+    const pcm = trimSilence(base64ToPcm(audio));
+    parts.push(model === "eleven_v3" ? changeRate(pcm, item.speed) : pcm);
     if (pieces.length > 1) parts.push(silence(120));
   }
   const joined = normalize(concatPcm(parts));
   // The expressive model ignores speed, so apply it to the audio afterwards.
-  return item.model === "eleven_v3" ? changeRate(joined, item.speed) : joined;
+  return joined;
 }
 
 export async function generateClips(
