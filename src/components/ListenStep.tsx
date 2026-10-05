@@ -94,7 +94,7 @@ export function ListenStep({ project, onBack }: { project: ProjectState; onBack:
             {new Set(project.characters.filter((c) => c.voiceId).map((c) => c.voiceId)).size} distinct voices
           </p>
         </div>
-        <div className="flex gap-2">
+        <div className="flex items-center gap-2">
           <Button
             variant="secondary"
             size="sm"
