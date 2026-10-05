@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Download, Headphones, Loader2, Pause, Play, RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { HelpTip, StepHint } from "@/components/HelpTip";
 import { assembleBook, assembleChapter } from "@/lib/pipeline";
 import { encodeMp3, pcmToWavBlob } from "@/lib/audio";
 import { stopPreview } from "@/lib/preview";
@@ -115,6 +116,7 @@ export function ListenStep({ project, onBack }: { project: ProjectState; onBack:
             {busy === "dl-all" ? <Loader2 className="size-3.5 animate-spin mr-1" /> : <Download className="size-3.5 mr-1" />}
             Download full MP3
           </Button>
+          <HelpTip title="Download" side="left">Saves the whole book as one MP3 file. You can also play or download each chapter below. "Adjust cast" lets you change voices; only changed lines get re-recorded.</HelpTip>
         </div>
       </div>
 

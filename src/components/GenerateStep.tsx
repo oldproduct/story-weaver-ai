@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Database, Loader2, Mic2, RefreshCw, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { HelpTip, StepHint } from "@/components/HelpTip";
 import { Progress } from "@/components/ui/progress";
 import { buildPlan, generateClips, type GenerationProgress } from "@/lib/pipeline";
 import { updateProject } from "@/lib/store";
@@ -69,6 +70,7 @@ export function GenerateStep({
           Each span is rendered with its assigned ElevenLabs voice. Generated clips are indexed and
           cached by text hash, so future cast adjustments only regenerate modified lines.
         </p>
+        <StepHint>Wait while each line is recorded. This uses ElevenLabs credits (top right). Pause stops it; Resume continues without re-recording finished lines.</StepHint>
       </div>
 
       <div className="rounded-xl border border-border bg-card p-5 shadow-xs">

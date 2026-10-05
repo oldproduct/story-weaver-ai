@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Brain, CheckCircle2, Loader2, Sparkles, Users } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { HelpTip, StepHint } from "@/components/HelpTip";
 import { Progress } from "@/components/ui/progress";
 import { runAnalysis, type AnalysisProgress } from "@/lib/pipeline";
 import { updateProject } from "@/lib/store";
@@ -65,6 +66,7 @@ export function AnalyzeStep({
           Gemini walks the text in chronological batches, carrying a running cast roster to collapse
           aliases and nicknames while filtering out characters that are merely mentioned.
         </p>
+        <StepHint>Just wait. You move to voice selection automatically when analysis finishes. Use Pause if you need to stop.</StepHint>
       </div>
 
       <div className="rounded-xl border border-border bg-card p-5 shadow-xs">
