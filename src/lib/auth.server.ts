@@ -25,14 +25,17 @@ export async function startSession() {
   setCookie(COOKIE, `${exp}.${await sign(exp)}`, {
     httpOnly: true,
     secure: true,
-    sameSite: "lax",
+    // The editor preview loads the app inside an iframe on another site;
+    // "none" + partitioned lets the cookie work there as well as directly.
+    sameSite: "none",
+    partitioned: true,
     path: "/",
     maxAge: MAX_AGE,
   });
 }
 
 export function endSession() {
-  deleteCookie(COOKIE, { path: "/" });
+  deleteCookie(COOKIE, { path: "/", secure: true, sameSite: "none", partitioned: true });
 }
 
 export async function hasSession(): Promise<boolean> {
