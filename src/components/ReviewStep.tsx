@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Check, Loader2, Play, ScanSearch, Sparkles, Wand2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { HelpTip, StepHint } from "@/components/HelpTip";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -273,6 +274,7 @@ export function ReviewStep({
         <p className="mt-1 max-w-xl text-[13px] text-default">
           Every line with its AI-assigned speaker and confidence score. Fix any mismatch — your choices are locked in and never overwritten.
         </p>
+        <StepHint>Check low-confidence lines, fix the speaker, emotion or speed where needed, press play to test a line, then click Generate.</StepHint>
       </div>
 
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3.5 shadow-xs">
@@ -280,15 +282,18 @@ export function ReviewStep({
           <strong className="font-mono text-strong">{uncertainCount}</strong> uncertain of{" "}
           {ordered.length} lines
         </span>
+        <HelpTip title="Reading each line">Confidence colours: green = sure (or set by you), yellow = maybe, red = likely wrong. On each line use the play button to hear it, the speaker menu to reassign it, the emotion menu to change how it is acted, and the speed menu (0.75x–1.5x) to change pace.</HelpTip>
         <div className="ml-auto flex flex-wrap gap-2">
           <Button size="sm" variant="secondary" className="h-8 text-[12px]" onClick={runFill} disabled={busy}>
             <Wand2 className="size-3.5" />
             Fill from pattern
           </Button>
+          <HelpTip title="Fill from pattern">Fills uncertain lines in two-person conversations by alternating speakers. Never changes lines you set yourself.</HelpTip>
           <Button size="sm" variant="secondary" className="h-8 text-[12px]" onClick={() => void runRedetect()} disabled={busy}>
             {busy ? <Loader2 className="size-3.5 animate-spin" /> : <ScanSearch className="size-3.5" />}
             Re-detect uncertain
           </Button>
+          <HelpTip title="Re-detect uncertain">Asks the AI again about low-confidence lines only. Your manual choices are kept.</HelpTip>
         </div>
       </div>
 

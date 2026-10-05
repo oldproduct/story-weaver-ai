@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
+import { requireSession } from "./auth.server";
 import { assertSpeakableText, stripVoiceTags } from "./voice-tags";
 
 const TAGS = ["[whispers]","[angry]","[sad]","[crying]","[laughs]","[excited]","[nervous]","[serious]","[flirtatious]","[sarcastic]"] as const;
@@ -23,6 +24,7 @@ const SynthInput = z.object({
 export const synthesizeClip = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => SynthInput.parse(input))
   .handler(async ({ data }): Promise<{ audio: string }> => {
+    await requireSession();
     const key = process.env["ELEVENLABS_API_KEY"];
     if (!key) throw new Error("The voice engine is not connected for this project.");
 

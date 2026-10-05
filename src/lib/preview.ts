@@ -2,6 +2,7 @@ import { base64ToPcm, changeRate, pcmToWavBlob } from "./audio";
 import { getClip, putClip } from "./clip-cache";
 import { hashKey } from "./id";
 import { synthesizeClip } from "./tts.functions";
+import { notifyCreditsChanged } from "./credits-events";
 import { HINDI_SAMPLE } from "./voices";
 
 let current: HTMLAudioElement | null = null;
@@ -22,6 +23,7 @@ export async function playSample(text: string, voice: string, instructions = "",
     const res = await synthesizeClip({
       data: { text: trimmed, voice, instructions, speed, ...(settings ?? {}), ...(v3 ? { model: "eleven_v3" as const, ...(delivery?.tag ? { emotionTag: delivery.tag as never } : {}) } : {}) },
     });
+    notifyCreditsChanged();
     pcm = base64ToPcm(res.audio);
     if (v3) pcm = changeRate(pcm, speed);
     await putClip(key, pcm);

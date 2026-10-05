@@ -1,6 +1,7 @@
 import { looksLikeBabble, MIN_V3_CHARS } from "./delivery";
 import { analyzeChunk } from "./ai.functions";
 import { synthesizeClip } from "./tts.functions";
+import { notifyCreditsChanged } from "./credits-events";
 import { applyFades, base64ToPcm, changeRate, concatPcm, durationMs, normalize, silence, trimSilence } from "./audio";
 import { getClip, putClip } from "./clip-cache";
 import { hashKey, uid } from "./id";
@@ -413,6 +414,7 @@ async function synthOne(item: GenerationPlanItem): Promise<Int16Array> {
           120_000,
           "narration clip",
         );
+        notifyCreditsChanged();
         if (looksLikeBabble(piece, durationMs(trimSilence(base64ToPcm(res.audio)))) && babbleRetries < 2) {
           // Gibberish output: retry once on v3, then fall back to the stable model.
           babbleRetries++;

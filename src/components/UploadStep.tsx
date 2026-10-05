@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { HelpTip, StepHint } from "@/components/HelpTip";
 import { buildChapters, extractText } from "@/lib/extract";
 import { buildSegments, estimateMinutes } from "@/lib/segment";
 import { uid } from "@/lib/id";
@@ -125,6 +126,7 @@ export function UploadStep({ onReady }: { onReady: () => void }) {
               >
                 Choose file from device
               </Button>
+              <div className="mt-2"><HelpTip title="Upload your file">Pick a PDF, DOCX, TXT or Markdown file. Text stays in your browser. Next you can check it and start the speaker analysis.</HelpTip></div>
             </>
           )}
           <input
@@ -177,6 +179,7 @@ export function UploadStep({ onReady }: { onReady: () => void }) {
                 Analyze speakers
                 <ArrowRight className="size-3.5 ml-1.5" />
               </Button>
+              <HelpTip title="Analyze speakers">AI reads the whole text, finds the narrator and each speaking character, and guesses an emotion for every line. Click it, then wait for it to finish.</HelpTip>
             </div>
           </div>
 

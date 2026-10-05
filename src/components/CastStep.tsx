@@ -1,6 +1,7 @@
 import { Mic, Play, Plus, Users, Volume2 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
+import { HelpTip, StepHint } from "@/components/HelpTip";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -136,6 +137,7 @@ export function CastStep({ project, onDone }: { project: ProjectState; onDone: (
             {leads.length} lead speakers get dedicated ElevenLabs voices. Minor supporting roles share
             a pooled voice to keep narration cohesive.
           </p>
+          <StepHint>Pick a voice for each speaker, press play to hear it, set speeds, then click "Review attributed lines".</StepHint>
         </div>
         <Button
           disabled={!ready}
@@ -148,6 +150,7 @@ export function CastStep({ project, onDone }: { project: ProjectState; onDone: (
         >
           Review attributed lines
         </Button>
+        <HelpTip title="Next step" side="left">Opens the line-by-line check, where you can fix who says each line before recording. Every speaker needs a voice first.</HelpTip>
       </div>
 
       <div className="flex flex-wrap gap-2 text-[12px] text-subtle">
@@ -169,7 +172,7 @@ export function CastStep({ project, onDone }: { project: ProjectState; onDone: (
 
       <section className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-border bg-card p-3.5 shadow-xs">
         <div>
-          <h3 className="text-[13px] font-medium text-strong">Overall pace</h3>
+          <h3 className="flex items-center gap-1.5 text-[13px] font-medium text-strong">Overall pace <HelpTip title="Overall pace">Makes the whole book faster or slower. Each speaker's own speed is added on top of this. The voice service can't go faster than 1.2x.</HelpTip></h3>
           <p className="text-[12px] text-default">Speeds up or slows down every speaker together.</p>
         </div>
         <SpeedControl
@@ -216,6 +219,7 @@ export function CastStep({ project, onDone }: { project: ProjectState; onDone: (
                   value={c.speed ?? 1}
                   onChange={(v) => patch(c.id, { speed: v })}
                 />
+                <HelpTip title="Speed and voice">Left: how fast this speaker talks. Right: choose their voice and press play to hear a sample. Demote moves a minor character to the shared voice.</HelpTip>
                 <VoicePicker
                   value={c.voiceId}
                   onChange={(v) => patch(c.id, { voiceId: v })}
@@ -244,6 +248,7 @@ export function CastStep({ project, onDone }: { project: ProjectState; onDone: (
             onClick={() => setRole(nextUp.id, "lead")}
           >
             <Plus className="size-3.5 mr-1 text-strong" />
+            <HelpTip title="Add a speaker">Gives the next most frequent character their own voice instead of the shared one.</HelpTip>
             Promote next speaker to lead: <strong className="ml-1 text-strong">{nextUp.name}</strong>{" "}
             ({nextUp.lineCount} lines)
           </Button>

@@ -1,4 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
+import { requireSession } from "./auth.server";
 import { z } from "zod";
 
 const LineSchema = z.object({
@@ -79,6 +80,7 @@ function parseJson(raw: string): unknown {
 export const analyzeChunk = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => AnalyzeInput.parse(input))
   .handler(async ({ data }): Promise<AnalyzeResult> => {
+    await requireSession();
     const key = process.env["LOVABLE_API_KEY"];
     if (!key) throw new Error("AI is not configured for this project.");
 
@@ -167,6 +169,7 @@ Respond with JSON only: {"assignments":[{"i":0,"speaker":"Meera","confidence":0.
 export const refineLines = createServerFn({ method: "POST" })
   .inputValidator((input: unknown) => RefineInput.parse(input))
   .handler(async ({ data }): Promise<{ assignments: AnalyzeResult["assignments"] }> => {
+    await requireSession();
     const key = process.env["LOVABLE_API_KEY"];
     if (!key) throw new Error("AI is not configured for this project.");
 
