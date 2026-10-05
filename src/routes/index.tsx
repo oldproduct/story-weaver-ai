@@ -1,4 +1,10 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { useQueryClient } from "@tanstack/react-query";
+import { LogOut } from "lucide-react";
+import { CreditsBadge } from "@/components/CreditsBadge";
+import { HelpTip } from "@/components/HelpTip";
+import { checkSession, logout } from "@/lib/auth.functions";
 import { useEffect, useState } from "react";
 import { AudioLines, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -14,6 +20,10 @@ import { clearClips } from "@/lib/clip-cache";
 import type { Stage } from "@/lib/types";
 
 export const Route = createFileRoute("/")({
+  beforeLoad: async () => {
+    const { signedIn } = await checkSession();
+    if (!signedIn) throw redirect({ to: "/login" });
+  },
   head: () => ({
     meta: [
       { title: "Chorus — AI Multi-Voice Audiobook Generator" },
@@ -41,6 +51,15 @@ function Studio() {
   const hydrated = useHydrated();
   const project = useProject();
   const [stage, setStage] = useState<Stage>("upload");
+  const doLogout = useServerFn(logout);
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const signOut = async () => {
+    await queryClient.cancelQueries();
+    queryClient.clear();
+    await doLogout();
+    await navigate({ to: "/login", replace: true });
+  };
 
   useEffect(() => {
     void hydrate();
@@ -77,7 +96,10 @@ function Studio() {
           <div className="order-3 w-full sm:order-2 sm:w-auto">
             <StepRail stage={stage} onJump={goto} reachable={reachable} />
           </div>
+          <div className="order-2 flex items-center gap-2 sm:order-3">
+          <CreditsBadge />
           {project ? (
+            <span className="inline-flex items-center gap-0.5">
             <Button
               size="sm"
               variant="ghost"
@@ -91,9 +113,14 @@ function Studio() {
               <Trash2 className="size-3.5 text-subtle" />
               New book
             </Button>
-          ) : (
-            <div className="order-2 hidden sm:order-3 sm:block w-20" />
-          )}
+            <HelpTip title="New book" side="bottom">Clears the current book and its saved recordings so you can upload a different file. This cannot be undone.</HelpTip>
+            </span>
+          ) : null}
+          <Button size="sm" variant="ghost" className="h-7 px-2 text-[12px]" onClick={() => void signOut()} aria-label="Sign out">
+            <LogOut className="size-3.5" />
+            <span className="hidden sm:inline">Sign out</span>
+          </Button>
+          </div>
         </div>
       </header>
 
