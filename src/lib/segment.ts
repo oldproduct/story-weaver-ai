@@ -125,3 +125,21 @@ export function buildSegments(chapters: Chapter[]): Segment[] {
 export function estimateMinutes(words: number): number {
   return words / 155;
 }
+
+export interface MarkerCounts {
+  voiceTags: number;
+  scriptLines: number;
+}
+
+/** Count explicit preparation markers in a parsed document: "(voice: …)" tags and "NAME:" script cues. */
+export function countMarkers(chapters: Chapter[]): MarkerCounts {
+  let voiceTags = 0;
+  let scriptLines = 0;
+  for (const chapter of chapters) {
+    for (const paragraph of chapter.paragraphs) {
+      voiceTags += (paragraph.match(VOICE_TAG_ANYWHERE()) ?? []).length;
+      if (SCRIPT_RE.test(paragraph.trim())) scriptLines += 1;
+    }
+  }
+  return { voiceTags, scriptLines };
+}
