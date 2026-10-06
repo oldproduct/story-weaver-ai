@@ -1,6 +1,11 @@
 import { uid } from "./id";
 import type { Chapter, Segment } from "./types";
-import { isVoiceTagOnly, stripVoiceTags, voiceTagName } from "./voice-tags";
+import {
+  VOICE_TAG_ANYWHERE,
+  isVoiceTagOnly,
+  stripVoiceTags,
+  voiceTagName,
+} from "./voice-tags";
 
 const OPEN = ["\u201c", '"', "\u2018", "\u00ab", "\u201a", "\u201e"];
 const CLOSE: Record<string, string> = {
@@ -19,7 +24,7 @@ interface Span {
 }
 
 /** "RAM:", "MRS. RAO —", "मीरा:" at the start of a line marks a script speech. */
-const SCRIPT_RE =
+export const SCRIPT_RE =
   /^\s*([\p{Lu}\p{Lo}][\p{L}\p{M}\p{N}.'\- ]{0,38}?)\s*(?::|\u2014|\u2013|--)\s+(\S[\s\S]*)$/u;
 /** A line that opens with a dash is spoken dialogue in many books. */
 const DASH_RE = /^\s*(?:\u2014|\u2013|-{1,2})\s+(\S[\s\S]*)$/;
