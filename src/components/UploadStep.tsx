@@ -169,6 +169,7 @@ export function UploadStep({ onReady }: { onReady: () => void }) {
   const words = draft?.chapters.reduce((n, c) => n + c.wordCount, 0) ?? 0;
   const dialogueLines = draft?.segments.filter((s) => s.kind === "dialogue").length ?? 0;
   const narrationLines = draft?.segments.filter((s) => s.kind === "narration").length ?? 0;
+  const markers = countMarkers(draft?.chapters ?? []);
 
   return (
     <div className="space-y-6">
@@ -243,6 +244,8 @@ export function UploadStep({ onReady }: { onReady: () => void }) {
             }}
           />
         </div>
+        <FormatGuide />
+      </>
       ) : (
         /* Manuscript Inspection Screen */
         <div className="space-y-5 animate-in fade-in-50 duration-200">
@@ -309,7 +312,12 @@ export function UploadStep({ onReady }: { onReady: () => void }) {
           <div className="rounded-xl border border-border bg-card overflow-hidden shadow-xs">
             <div className="flex items-center justify-between border-b border-border bg-bg-selected/60 px-4 py-2.5">
               <span className="text-[12px] font-medium text-strong">Detected Chapters & Length</span>
-              <span className="text-[11px] text-subtle font-mono">{narrationLines} narration · {dialogueLines} dialogue</span>
+              <span className="flex items-center gap-1.5 text-[11px] text-subtle font-mono">
+                {narrationLines} narration · {dialogueLines} dialogue · {markers.voiceTags} voice tags · {markers.scriptLines} script lines
+              </span>
+              <HelpTip title="Markers found">
+                Voice tags are counted from (voice: Name) lines and script lines from NAME: lines in your file. If a count looks wrong, check the spelling — the name in a (voice: …) tag must match a speaker on the Speakers screen.
+              </HelpTip>
             </div>
             <ul className="max-h-60 divide-y divide-border overflow-y-auto text-[12px]">
               {draft.chapters.map((c, i) => (
