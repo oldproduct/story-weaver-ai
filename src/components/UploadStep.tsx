@@ -1,5 +1,8 @@
 import { useRef, useState } from "react";
 import {
+  BookOpen,
+  ChevronDown,
+  FileDown,
   FileText,
   Loader2,
   UploadCloud,
@@ -9,7 +12,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { HelpTip, StepHint } from "@/components/HelpTip";
 import { buildChapters, extractText } from "@/lib/extract";
-import { buildSegments, estimateMinutes } from "@/lib/segment";
+import { buildSegments, countMarkers, estimateMinutes } from "@/lib/segment";
 import { uid } from "@/lib/id";
 import { setProject } from "@/lib/store";
 import type { Chapter, ProjectState, Segment } from "@/lib/types";
@@ -19,6 +22,104 @@ interface Draft {
   fileName: string;
   chapters: Chapter[];
   segments: Segment[];
+}
+
+const SAMPLE_FILE_NAME = "sample-formatted-story.txt";
+const SAMPLE_FILE_TEXT = `अध्याय एक
+
+सूरज ढल रहा था। गाँव की मिट्टी की सड़क पर धूल उड़ रही थी। मीरा तेज़ कदमों से चल रही थी।
+
+(voice: Meera)
+तुम यहीं हो? मैं तुम्हें बहुत देर से ढूँढ रही थी।
+
+रोहन: हाँ मीरा, मुझे तुमसे कुछ ज़रूरी बात कहनी थी।
+
+"पहले बात करो, मैं सुन रही हूँ।" मीरा ने धीरे से कहा।
+
+— चलो, पहले घर चलते हैं। रास्ते में सब बता दूँगा।
+
+अध्याय दो
+
+अगली सुबह गाँव में सन्नाटा था। किसी को नहीं पता था कि रात को असल में हुआ क्या था।
+`;
+
+const cueClass = "rounded bg-bg-selected px-1 py-0.5 font-mono text-[11px] text-strong";
+
+/** Collapsible guide explaining every marker a prepared document can use. */
+function FormatGuide() {
+  const [open, setOpen] = useState(false);
+
+  const downloadSample = () => {
+    const blob = new Blob([SAMPLE_FILE_TEXT], { type: "text/plain;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = SAMPLE_FILE_NAME;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  return (
+    <div className="mt-4 rounded-xl border border-border bg-card shadow-xs">
+      <button
+        type="button"
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between px-4 py-3 text-left transition-colors hover:bg-bg-selected/40"
+      >
+        <span className="flex items-center gap-2 text-[13px] font-medium text-strong">
+          <BookOpen className="size-4 shrink-0 text-subtle" />
+          How to mark voices, paragraphs &amp; chapters in your file
+        </span>
+        <ChevronDown className={cn("size-4 shrink-0 text-subtle transition-transform", open && "rotate-180")} />
+      </button>
+      {open && (
+        <div className="space-y-4 border-t border-border px-4 py-4 text-[12px] leading-relaxed text-default">
+          <div>
+            <p className="font-medium text-strong">1. How does it know when to pause?</p>
+            <ul className="mt-1 list-disc space-y-1 pl-4">
+              <li>
+                Leave one <span className="font-medium text-strong">empty line</span> between paragraphs → a natural ~0.6 second pause.
+              </li>
+              <li>
+                Write a chapter heading on its own line, like{" "}
+                <code className={cueClass}>अध्याय 1</code> or <code className={cueClass}>Chapter 1</code> → a new chapter with a 1.5 second silence.
+              </li>
+            </ul>
+          </div>
+          <div>
+            <p className="font-medium text-strong">2. How does it know who is speaking?</p>
+            <ul className="mt-1 list-disc space-y-1 pl-4">
+              <li>
+                Quotes: <code className={cueClass}>"तुम कहाँ जा रहे हो?"</code> is dialogue — everything outside quotes is read by the narrator.
+              </li>
+              <li>
+                Script style: <code className={cueClass}>रोहन: नमस्ते!</code> — the name before the colon becomes that character's speaker.
+              </li>
+              <li>
+                Dash style: <code className={cueClass}>— चलो चलते हैं</code> at the start of a line is also dialogue.
+              </li>
+            </ul>
+          </div>
+          <div>
+            <p className="font-medium text-strong">3. How do I force a specific voice?</p>
+            <ul className="mt-1 list-disc space-y-1 pl-4">
+              <li>
+                Write <code className={cueClass}>(voice: Riya)</code> on its own line (or at the start of a line) → that text is spoken by the speaker named Riya.
+              </li>
+              <li>The name must match a speaker on the Speakers screen — spelling matters.</li>
+            </ul>
+          </div>
+          <p className="rounded-md bg-muted px-2.5 py-1.5 text-[11px] text-subtle">
+            Everything else is detected automatically by AI — these markers are only needed when you want to be extra sure.
+          </p>
+          <Button variant="outline" size="sm" className="h-8 rounded-lg px-3 text-[12px]" onClick={downloadSample}>
+            <FileDown className="mr-1.5 size-3.5" />
+            Download a sample formatted file
+          </Button>
+        </div>
+      )}
+    </div>
+  );
 }
 
 export function UploadStep({ onReady }: { onReady: () => void }) {
@@ -68,11 +169,13 @@ export function UploadStep({ onReady }: { onReady: () => void }) {
   const words = draft?.chapters.reduce((n, c) => n + c.wordCount, 0) ?? 0;
   const dialogueLines = draft?.segments.filter((s) => s.kind === "dialogue").length ?? 0;
   const narrationLines = draft?.segments.filter((s) => s.kind === "narration").length ?? 0;
+  const markers = countMarkers(draft?.chapters ?? []);
 
   return (
     <div className="space-y-6">
       {!draft ? (
-        /* Minimalist Hero Upload Dropzone */
+        <>
+        {/* Minimalist Hero Upload Dropzone */}
         <div
           onDragOver={(e) => {
             e.preventDefault();
@@ -141,6 +244,8 @@ export function UploadStep({ onReady }: { onReady: () => void }) {
             }}
           />
         </div>
+        <FormatGuide />
+      </>
       ) : (
         /* Manuscript Inspection Screen */
         <div className="space-y-5 animate-in fade-in-50 duration-200">
@@ -207,7 +312,12 @@ export function UploadStep({ onReady }: { onReady: () => void }) {
           <div className="rounded-xl border border-border bg-card overflow-hidden shadow-xs">
             <div className="flex items-center justify-between border-b border-border bg-bg-selected/60 px-4 py-2.5">
               <span className="text-[12px] font-medium text-strong">Detected Chapters & Length</span>
-              <span className="text-[11px] text-subtle font-mono">{narrationLines} narration · {dialogueLines} dialogue</span>
+              <span className="flex items-center gap-1.5 text-[11px] text-subtle font-mono">
+                {narrationLines} narration · {dialogueLines} dialogue · {markers.voiceTags} voice tags · {markers.scriptLines} script lines
+              </span>
+              <HelpTip title="Markers found">
+                Voice tags are counted from (voice: Name) lines and script lines from NAME: lines in your file. If a count looks wrong, check the spelling — the name in a (voice: …) tag must match a speaker on the Speakers screen.
+              </HelpTip>
             </div>
             <ul className="max-h-60 divide-y divide-border overflow-y-auto text-[12px]">
               {draft.chapters.map((c, i) => (
