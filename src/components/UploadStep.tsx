@@ -1,5 +1,8 @@
 import { useRef, useState } from "react";
 import {
+  BookOpen,
+  ChevronDown,
+  FileDown,
   FileText,
   Loader2,
   UploadCloud,
@@ -9,7 +12,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { HelpTip, StepHint } from "@/components/HelpTip";
 import { buildChapters, extractText } from "@/lib/extract";
-import { buildSegments, estimateMinutes } from "@/lib/segment";
+import { buildSegments, countMarkers, estimateMinutes } from "@/lib/segment";
 import { uid } from "@/lib/id";
 import { setProject } from "@/lib/store";
 import type { Chapter, ProjectState, Segment } from "@/lib/types";
