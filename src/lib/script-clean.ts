@@ -144,7 +144,6 @@ export function cleanForSpeech(raw: string, disabled: Set<string> = new Set()): 
     let body = line.slice(tag.length);
     for (const r of LINE_RULES) {
       if (r.hindiOnly && !hindi) continue;
-      if (!hindi && r.rule === "Percent" && r.fn("", "1").includes("प्रतिशत")) continue;
       r.re.lastIndex = 0;
       body = body.replace(r.re, (m: string, ...g: unknown[]) => {
         const groups = g.filter((x): x is string => typeof x === "string" || x === undefined) as string[];

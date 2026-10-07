@@ -54,7 +54,7 @@ const CHAPTER_RE =
   /^\s*(?:(?:chapter|chap\.?|part|book|section|prologue|epilogue|interlude)\b|अध्याय|भाग|खंड|परिच्छेद)[^.!?।]{0,60}$/i;
 const ROMAN_RE = /^\s*(?:[IVXLC]+|\d{1,3})\s*[.)]?\s*$/;
 
-function looksLikeHeading(line: string): boolean {
+export function looksLikeHeading(line: string): boolean {
   const t = line.trim();
   if (!t || t.length > 80) return false;
   if (CHAPTER_RE.test(t)) return true;
