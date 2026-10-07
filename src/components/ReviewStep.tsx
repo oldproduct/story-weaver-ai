@@ -1,7 +1,7 @@
 import { useMemo, useRef, useState } from "react";
-import { Check, Combine, Loader2, Pencil, Play, ScanSearch, Scissors, Sparkles, Trash2, Undo2, Wand2 } from "lucide-react";
+import { ArrowDown, ArrowUp, Check, Combine, Loader2, Pencil, Play, ScanSearch, Scissors, Sparkles, Trash2, Undo2, Wand2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { combineSegments, deleteSegment, editSegmentText, splitSegment } from "@/lib/segment-edit";
+import { combineSegments, deleteSegment, editSegmentText, moveSegment, splitSegment } from "@/lib/segment-edit";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { HelpTip, StepHint } from "@/components/HelpTip";
@@ -99,6 +99,8 @@ export function ReviewStep({
   }, [ordered, filter, speakerFilter, query]);
 
   const shown = visible.slice(0, limit);
+  const orderIndex = useMemo(() => new Map(ordered.map((s, i) => [s.id, i])), [ordered]);
+  const canReorder = !busy && !editingIdPlaceholder;
 
   const applySegments = (fn: (segments: Segment[]) => Segment[]) => {
     updateProject((p) => {

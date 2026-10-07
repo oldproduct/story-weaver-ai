@@ -91,3 +91,17 @@ export function splitSegment(segments: Segment[], id: string, offset: number, te
 export function deleteSegment(segments: Segment[], id: string): Segment[] {
   return renumber(sorted(segments).filter((s) => s.id !== id));
 }
+
+/** Move by one real neighbour, never across chapters. Preserve text and delivery for cached audio. */
+export function moveSegment(segments: Segment[], id: string, direction: "up" | "down"): Segment[] {
+  const list = sorted(segments);
+  const index = list.findIndex((s) => s.id === id);
+  if (index < 0) return segments;
+  const targetIndex = index + (direction === "up" ? -1 : 1);
+  const current = list[index];
+  const neighbour = list[targetIndex];
+  if (!current || !neighbour || current.chapterId !== neighbour.chapterId) return segments;
+  list[index] = lock(neighbour);
+  list[targetIndex] = lock(current);
+  return renumber(list);
+}
