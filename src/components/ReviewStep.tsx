@@ -1,5 +1,7 @@
-import { useMemo, useState } from "react";
-import { Check, Loader2, Play, ScanSearch, Sparkles, Wand2 } from "lucide-react";
+import { useMemo, useRef, useState } from "react";
+import { Check, Combine, Loader2, Pencil, Play, ScanSearch, Scissors, Sparkles, Trash2, Undo2, Wand2 } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { combineSegments, deleteSegment, editSegmentText, splitSegment } from "@/lib/segment-edit";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { HelpTip, StepHint } from "@/components/HelpTip";
@@ -103,6 +105,65 @@ export function ReviewStep({
       const segments = fn(p.segments);
       return { ...p, segments, characters: recountCharacters(segments, p.characters) };
     });
+  };
+
+  const [undoSnapshot, setUndoSnapshot] = useState<Segment[] | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editText, setEditText] = useState("");
+  const editRef = useRef<HTMLTextAreaElement>(null);
+
+  /** Text edits keep a one-step undo snapshot. */
+  const applyEdit = (next: Segment[]) => {
+    setUndoSnapshot(project.segments);
+    applySegments(() => next);
+  };
+  const undo = () => {
+    if (!undoSnapshot) return;
+    const snap = undoSnapshot;
+    setUndoSnapshot(null);
+    applySegments(() => snap);
+    toast.message("Last change undone.");
+  };
+  const startEdit = (seg: Segment) => {
+    setEditingId(seg.id);
+    setEditText(seg.text);
+  };
+  const saveEdit = () => {
+    if (!editingId) return;
+    const current = project.segments.find((s) => s.id === editingId);
+    if (current && editText.trim() && editText !== current.text) {
+      applyEdit(editSegmentText(project.segments, editingId, editText, project.characters));
+    }
+    setEditingId(null);
+  };
+  const splitHere = () => {
+    if (!editingId) return;
+    const offset = editRef.current?.selectionStart ?? 0;
+    const next = splitSegment(project.segments, editingId, offset, editText);
+    if (next === project.segments) {
+      toast.error("Put the cursor inside the text where you want to cut.");
+      return;
+    }
+    applyEdit(next);
+    setEditingId(null);
+  };
+  const removeLine = (id: string) => {
+    const snap = project.segments;
+    applyEdit(deleteSegment(project.segments, id));
+    toast("Line deleted", {
+      duration: 5000,
+      action: { label: "Undo", onClick: () => { setUndoSnapshot(null); applySegments(() => snap); } },
+    });
+  };
+  const combineSelected = () => {
+    const res = combineSegments(project.segments, [...selected]);
+    if (!res.ok) {
+      toast.error(res.reason);
+      return;
+    }
+    applyEdit(res.segments);
+    setSelected(new Set());
+    toast.success("Lines combined.");
   };
 
   const setSpeaker = (ids: string[], speakerId: string) => {
@@ -294,6 +355,10 @@ export function ReviewStep({
             Re-detect uncertain
           </Button>
           <HelpTip title="Re-detect uncertain">Asks the AI again about low-confidence lines only. Your manual choices are kept.</HelpTip>
+          <Button size="sm" variant="ghost" className="h-8 text-[12px]" onClick={undo} disabled={!undoSnapshot}>
+            <Undo2 className="size-3.5" />
+            Undo
+          </Button>
         </div>
       </div>
 
@@ -356,6 +421,11 @@ export function ReviewStep({
               <SelectItem value="__new">New speaker…</SelectItem>
             </SelectContent>
           </Select>
+          <Button size="sm" variant="secondary" className="h-8 text-[12px]" onClick={combineSelected} disabled={selected.size < 2}>
+            <Combine className="size-3.5" />
+            Combine lines
+          </Button>
+          <HelpTip title="Combine lines">Joins the selected lines into one line. They must sit next to each other in the same chapter. The first line's speaker, emotion and speed are kept.</HelpTip>
           <Button size="sm" variant="ghost" className="h-8 text-[12px]" onClick={() => setSelected(new Set())}>
             Clear
           </Button>
@@ -386,11 +456,38 @@ export function ReviewStep({
                   aria-label="Select line"
                 />
                 <div className="min-w-[14rem] flex-1">
-                  <p className="text-[13px] leading-relaxed text-strong">
-                    {seg.kind === "dialogue" ? `“${seg.text}”` : seg.text}
-                  </p>
+                  {editingId === seg.id ? (
+                    <div className="space-y-2">
+                      <Textarea
+                        ref={editRef}
+                        autoFocus
+                        value={editText}
+                        onChange={(e) => setEditText(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveEdit(); }
+                          if (e.key === "Escape") setEditingId(null);
+                        }}
+                        className="min-h-20 text-[13px]"
+                        aria-label="Edit line text"
+                      />
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Button size="sm" className="h-7 text-[11px]" onClick={saveEdit}>Save</Button>
+                        <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={() => setEditingId(null)}>Cancel</Button>
+                        <Button size="sm" variant="secondary" className="h-7 text-[11px]" onClick={splitHere}>
+                          <Scissors className="size-3" />
+                          Split here
+                        </Button>
+                        <HelpTip title="Editing a line">Enter saves, Esc cancels. To cut this line in two, click where you want the cut and press Split here. Typing (voice: Name) at the start switches the speaker.</HelpTip>
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-[13px] leading-relaxed text-strong" onDoubleClick={() => startEdit(seg)}>
+                      {seg.kind === "dialogue" ? `“${seg.text}”` : seg.text}
+                    </p>
+                  )}
                   <div className="mt-1.5 flex items-center gap-2">
                     {confidenceBadge(seg)}
+                    {seg.edited && <span className="text-[10px] font-medium text-subtle">edited</span>}
                     <span className="font-mono text-[11px] text-subtle">
                       {seg.kind === "dialogue" ? "dialogue quote" : "narration"}
                     </span>
@@ -451,6 +548,12 @@ export function ReviewStep({
                   onClick={() => playLine(seg)}
                 >
                   {playingId === seg.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
+                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Edit line" onClick={() => startEdit(seg)}>
+                  <Pencil className="h-3.5 w-3.5" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Delete line" onClick={() => removeLine(seg.id)}>
+                  <Trash2 className="h-3.5 w-3.5" />
                 </Button>
               </div>
             </div>
