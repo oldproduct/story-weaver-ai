@@ -14,12 +14,18 @@ import { HelpTip, StepHint } from "@/components/HelpTip";
 import { buildChapters, extractText } from "@/lib/extract";
 import { buildSegments, countMarkers, estimateMinutes } from "@/lib/segment";
 import { uid } from "@/lib/id";
+import { cleanForSpeech, type CleanChange } from "@/lib/script-clean";
+import { Switch } from "@/components/ui/switch";
 import { setProject } from "@/lib/store";
 import type { Chapter, ProjectState, Segment } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
 interface Draft {
   fileName: string;
+  raw: string;
+  cleanup: boolean;
+  disabled: Set<string>;
+  changes: CleanChange[];
   chapters: Chapter[];
   segments: Segment[];
 }
@@ -109,6 +115,16 @@ function FormatGuide() {
               <li>The name must match a speaker on the Speakers screen — spelling matters.</li>
             </ul>
           </div>
+          <div>
+            <p className="font-medium text-strong">4. What cleanup changes automatically</p>
+            <ul className="mt-1 list-disc space-y-1 pl-4">
+              <li>Short forms are spelled out: <code className={cueClass}>डॉ.</code> → डॉक्टर, <code className={cueClass}>पं.</code> → पंडित.</li>
+              <li>Numbers become words: <code className={cueClass}>1947</code> → उन्नीस सौ सैंतालीस, <code className={cueClass}>₹500</code> → पाँच सौ रुपये.</li>
+              <li>Page numbers, bullet marks and broken PDF words are removed or fixed.</li>
+              <li>Text in square brackets like <code className={cueClass}>[हँसते हुए]</code> is not read aloud — it sets that line's emotion.</li>
+              <li>You can see every fix, undo any of them, or switch cleanup off after uploading.</li>
+            </ul>
+          </div>
           <p className="rounded-md bg-muted px-2.5 py-1.5 text-[11px] text-subtle">
             Everything else is detected automatically by AI — these markers are only needed when you want to be extra sure.
           </p>
@@ -117,6 +133,61 @@ function FormatGuide() {
             Download a sample formatted file
           </Button>
         </div>
+      )}
+    </div>
+  );
+}
+
+function CleanupPanel({
+  draft,
+  onToggle,
+  onRevert,
+}: {
+  draft: Draft;
+  onToggle: (on: boolean) => void;
+  onRevert: (id: string) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const active = draft.changes.length;
+  const reverted = [...draft.disabled];
+  const rows = [
+    ...draft.changes.map((c) => ({ ...c, off: false })),
+    ...reverted.map((id) => ({ id, rule: id.split(":")[0] ?? "", before: "", after: "", off: true })),
+  ];
+  return (
+    <div className="rounded-xl border border-border bg-card shadow-xs">
+      <div className="flex flex-wrap items-center gap-3 px-4 py-3">
+        <Switch checked={draft.cleanup} onCheckedChange={onToggle} aria-label="Spoken-Hindi cleanup" />
+        <span className="text-[13px] font-medium text-strong">Spoken-Hindi cleanup: {draft.cleanup ? "On" : "Off"}</span>
+        <HelpTip title="Clean up for speech">
+          Fixes things a voice reads badly: डॉ. → डॉक्टर, numbers and years to words (1947 → उन्नीस सौ सैंतालीस), ₹ and %, page numbers, bullet marks, broken PDF words and messy punctuation. Voice tags, NAME: lines, chapter headings and empty lines are never changed. Turn it off to use your file exactly as written.
+        </HelpTip>
+        <span className="text-[12px] text-subtle">{active} fix{active === 1 ? "" : "es"} found</span>
+        {(active > 0 || reverted.length > 0) && draft.cleanup && (
+          <Button variant="ghost" size="sm" className="ml-auto h-8 text-[12px]" onClick={() => setOpen((v) => !v)}>
+            {open ? "Hide changes" : "See changes"}
+            <ChevronDown className={cn("ml-1 size-3.5 transition-transform", open && "rotate-180")} />
+          </Button>
+        )}
+      </div>
+      {open && draft.cleanup && (
+        <ul className="max-h-64 divide-y divide-border overflow-y-auto border-t border-border text-[12px]">
+          {rows.slice(0, 300).map((c) => (
+            <li key={c.id} className="flex items-center gap-3 px-4 py-2">
+              <span className="w-32 shrink-0 text-[11px] text-subtle">{c.rule}</span>
+              {c.off ? (
+                <span className="flex-1 text-subtle italic">Kept as written</span>
+              ) : (
+                <span className="flex-1 truncate text-strong">
+                  <span className="text-subtle line-through">{c.before}</span> → {c.after}
+                </span>
+              )}
+              <Button variant="ghost" size="sm" className="h-7 text-[11px]" onClick={() => onRevert(c.id)}>
+                {c.off ? "Apply fix" : "Undo"}
+              </Button>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );
@@ -132,9 +203,23 @@ export function UploadStep({ onReady }: { onReady: () => void }) {
     if (raw.replace(/\s/g, "").length < 60) {
       throw new Error("That file has almost no readable text. Scanned PDFs aren't supported yet.");
     }
-    const chapters = buildChapters(raw);
+    setDraft(rebuild({ fileName, raw, cleanup: true, disabled: new Set() }));
+  };
+
+  const rebuild = (d: Pick<Draft, "fileName" | "raw" | "cleanup" | "disabled">): Draft => {
+    const cleaned = cleanForSpeech(d.raw, d.disabled);
+    const text = d.cleanup ? cleaned.text : d.raw;
+    const chapters = buildChapters(text);
     const segments = buildSegments(chapters);
-    setDraft({ fileName, chapters, segments });
+    return { ...d, changes: cleaned.changes, chapters, segments };
+  };
+
+  const toggleChange = (id: string) => {
+    if (!draft) return;
+    const disabled = new Set(draft.disabled);
+    if (disabled.has(id)) disabled.delete(id);
+    else disabled.add(id);
+    setDraft(rebuild({ ...draft, disabled }));
   };
 
   const handleFile = async (file: File) => {
@@ -287,6 +372,12 @@ export function UploadStep({ onReady }: { onReady: () => void }) {
               <HelpTip title="Analyze speakers">AI reads the whole text, finds the narrator and each speaking character, and guesses an emotion for every line. Click it, then wait for it to finish.</HelpTip>
             </div>
           </div>
+
+          <CleanupPanel
+            draft={draft}
+            onToggle={(on) => setDraft(rebuild({ ...draft, cleanup: on }))}
+            onRevert={toggleChange}
+          />
 
           {/* Metric Cards Grid */}
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
