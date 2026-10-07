@@ -20,6 +20,8 @@ export interface Segment {
   manual?: boolean;
   emotion?: EmotionType;
   speed?: LineSpeed;
+  /** True when the user edited, combined or split this line's text. */
+  edited?: boolean;
 }
 
 export type EmotionType =

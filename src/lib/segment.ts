@@ -1,5 +1,26 @@
 import { uid } from "./id";
-import type { Chapter, Segment } from "./types";
+import type { Chapter, EmotionType, Segment } from "./types";
+
+const STAGE_RE = /\[([^\]\n]{1,40})\]/g;
+const STAGE_EMOTIONS: Array<[RegExp, EmotionType]> = [
+  [/हँस|हंस|laugh/i, "laughing"],
+  [/फुसफुस|धीरे से|whisper/i, "whispering"],
+  [/गुस्स|क्रोध|चिल्ला|angr|shout/i, "angry"],
+  [/रोत|रो कर|रोकर|सिसक|cry|sob/i, "crying"],
+  [/उदास|दुख|sad/i, "sad"],
+  [/डर|घबरा|scared|nervous/i, "scared"],
+  [/उत्साह|खुश|excited/i, "excited"],
+];
+
+/** "[हँसते हुए]" style stage directions are never spoken; they become an emotion hint. */
+export function extractStageDirections(text: string): { text: string; emotion?: EmotionType } {
+  let emotion: EmotionType | undefined;
+  const cleaned = text.replace(STAGE_RE, (_m, inner: string) => {
+    if (!emotion) emotion = STAGE_EMOTIONS.find(([re]) => re.test(inner))?.[1];
+    return " ";
+  }).replace(/\s+/g, " ").trim();
+  return { text: cleaned, ...(emotion ? { emotion } : {}) };
+}
 import {
   VOICE_TAG_ANYWHERE,
   isVoiceTagOnly,
@@ -96,7 +117,8 @@ export function buildSegments(chapters: Chapter[]): Segment[] {
         continue;
       }
       const inlineVoice = tagName;
-      const paragraph = stripVoiceTags(rawParagraph);
+      const staged = extractStageDirections(stripVoiceTags(rawParagraph));
+      const paragraph = staged.text;
       if (!paragraph) continue;
       const voice = inlineVoice ?? pendingVoice;
       pendingVoice = null;
@@ -115,6 +137,7 @@ export function buildSegments(chapters: Chapter[]): Segment[] {
           speakerId: kind === "narration" ? "narrator" : null,
           confidence: kind === "narration" ? 1 : 0,
           ...(hint ? { hint } : {}),
+          ...(staged.emotion ? { emotion: staged.emotion } : {}),
         });
       }
     }
