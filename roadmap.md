@@ -1,0 +1,3 @@
+- [x] Add same-chapter up/down line moves with undo and saved playback order.
+- [x] Add three short preparation reminders above Review lines.
+- [x] Test line movement and verify the signed-in Review screen.
