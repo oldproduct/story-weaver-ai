@@ -100,7 +100,6 @@ export function ReviewStep({
 
   const shown = visible.slice(0, limit);
   const orderIndex = useMemo(() => new Map(ordered.map((s, i) => [s.id, i])), [ordered]);
-  const canReorder = !busy && !editingIdPlaceholder;
 
   const applySegments = (fn: (segments: Segment[]) => Segment[]) => {
     updateProject((p) => {
@@ -113,6 +112,7 @@ export function ReviewStep({
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editText, setEditText] = useState("");
   const editRef = useRef<HTMLTextAreaElement>(null);
+  const canReorder = !busy && editingId === null && filter === "all" && speakerFilter === "any" && !query.trim();
 
   /** Text edits keep a one-step undo snapshot. */
   const applyEdit = (next: Segment[]) => {
@@ -166,6 +166,11 @@ export function ReviewStep({
     applyEdit(res.segments);
     setSelected(new Set());
     toast.success("Lines combined.");
+  };
+  const moveLine = (id: string, direction: "up" | "down") => {
+    if (!canReorder) return;
+    const next = moveSegment(project.segments, id, direction);
+    if (next !== project.segments) applyEdit(next);
   };
 
   const setSpeaker = (ids: string[], speakerId: string) => {
@@ -340,6 +345,15 @@ export function ReviewStep({
         <StepHint>Check low-confidence lines, fix the speaker, emotion or speed where needed, press play to test a line, then click Generate.</StepHint>
       </div>
 
+      <section aria-label="Document preparation reminders" className="border-y border-border py-3 text-[12px] leading-relaxed text-default">
+        <h3 className="mb-1.5 font-medium text-strong">Document guide · 3 quick reminders</h3>
+        <ol className="list-decimal space-y-1.5 pl-5">
+          <li><strong>Pauses & chapters:</strong> In your uploaded file, leave an empty line between paragraphs; put <code>अध्याय 1</code> or <code>Chapter 1</code> on its own line for a chapter break. Here, correct commas and full stops (<code>।</code>) in the line text; a blank line in an edit does not create a new chapter.</li>
+          <li><strong>Who speaks:</strong> In your file, quotes, <code>रोहन: नमस्ते!</code> and a starting dash (<code>—</code>) mark dialogue; text outside quotes is narration. Here, choose the speaker from the line’s menu, or type <code>(voice: Riya)</code> while editing—use an existing speaker’s exact name. The tag is not spoken.</li>
+          <li><strong>Cleanup & final order:</strong> Upload cleanup spells out short forms and numbers, fixes broken words and removes page clutter; <code>[हँसते हुए]</code> sets an emotion. Here, check the cleaned words, choose the emotion, edit or combine neighbouring lines, and use ↑ / ↓ within a chapter. Clear filters to move lines; Generate follows your saved text and order.</li>
+        </ol>
+      </section>
+
       <div className="flex flex-wrap items-center gap-3 rounded-xl border border-border bg-card p-3.5 shadow-xs">
         <span className="text-[13px] text-default">
           <strong className="font-mono text-strong">{uncertainCount}</strong> uncertain of{" "}
@@ -438,6 +452,9 @@ export function ReviewStep({
         {shown.map((seg, i) => {
           const prev = shown[i - 1];
           const newChapter = !prev || prev.chapterId !== seg.chapterId;
+          const index = orderIndex.get(seg.id) ?? -1;
+          const above = ordered[index - 1];
+          const below = ordered[index + 1];
           return (
             <div key={seg.id}>
               {newChapter && (
@@ -553,6 +570,12 @@ export function ReviewStep({
                 </Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Edit line" onClick={() => startEdit(seg)}>
                   <Pencil className="h-3.5 w-3.5" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Move line up" title="Move line up · same chapter, all lines visible" disabled={!canReorder || above?.chapterId !== seg.chapterId} onClick={() => moveLine(seg.id, "up")}>
+                  <ArrowUp className="size-3.5" />
+                </Button>
+                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Move line down" title="Move line down · same chapter, all lines visible" disabled={!canReorder || below?.chapterId !== seg.chapterId} onClick={() => moveLine(seg.id, "down")}>
+                  <ArrowDown className="size-3.5" />
                 </Button>
                 <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Delete line" onClick={() => removeLine(seg.id)}>
                   <Trash2 className="h-3.5 w-3.5" />

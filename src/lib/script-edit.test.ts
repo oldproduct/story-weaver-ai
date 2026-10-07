@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { cleanForSpeech, hindiNumber } from "./script-clean";
-import { combineSegments, editSegmentText, splitSegment } from "./segment-edit";
+import { combineSegments, editSegmentText, moveSegment, splitSegment } from "./segment-edit";
 import { extractStageDirections } from "./segment";
 import type { CharacterProfile, Segment } from "./types";
 
@@ -10,6 +10,27 @@ const seg = (id: string, order: number, text: string, chapterId = "c1", speakerI
 const lines = [seg("a", 0, "पहला।", "c1", "x"), seg("b", 1, "दूसरा।"), seg("c", 2, "तीसरा।"), seg("d", 3, "चौथा।", "c2")];
 
 describe("line editing", () => {
+  it("moves up in story order and preserves speaker, text, emotion and speed", () => {
+    const input = lines.map((s) => s.id === "b" ? { ...s, emotion: "angry" as const, speed: 0.8 } : s);
+    const out = moveSegment([...input].reverse(), "b", "up");
+    expect(out.map((s) => s.id)).toEqual(["b", "a", "c", "d"]);
+    expect(out.map((s) => s.order)).toEqual([0, 1, 2, 3]);
+    expect(out[0]).toMatchObject({ text: "दूसरा।", speakerId: "narrator", emotion: "angry", speed: 0.8, manual: true, confidence: 1 });
+    expect(out[1]?.manual).toBe(true);
+    expect(input[1]?.order).toBe(1);
+  });
+  it("moves down and can restore the original order", () => {
+    const moved = moveSegment(lines, "a", "down");
+    expect(moved.map((s) => s.id)).toEqual(["b", "a", "c", "d"]);
+    expect(moveSegment(moved, "a", "up").map((s) => s.id)).toEqual(["a", "b", "c", "d"]);
+  });
+  it("never moves across chapter boundaries or beyond the first and last line", () => {
+    expect(moveSegment(lines, "c", "down")).toBe(lines);
+    expect(moveSegment(lines, "d", "up")).toBe(lines);
+    expect(moveSegment(lines, "a", "up")).toBe(lines);
+    expect(moveSegment(lines, "d", "down")).toBe(lines);
+    expect(moveSegment(lines, "missing", "down")).toBe(lines);
+  });
   it("combines neighbours keeping first speaker and order", () => {
     const r = combineSegments(lines, ["a", "b"]);
     expect(r.ok).toBe(true);
