@@ -98,7 +98,7 @@ export function ReviewStep({
   }, [ordered, filter, speakerFilter, query]);
 
   const orderIndex = useMemo(() => new Map(ordered.map((s, i) => [s.id, i])), [ordered]);
-  const activeSegment = ordered.find((s) => s.id === activeId) ?? visible[0] ?? ordered[0] ?? null;
+  const activeSegment = visible.find((s) => s.id === activeId) ?? visible[0] ?? null;
 
   const applySegments = (fn: (segments: Segment[]) => Segment[]) => {
     updateProject((p) => {
@@ -497,9 +497,16 @@ export function ReviewStep({
                   {chapterTitle.get(seg.chapterId) ?? "Chapter"}
                 </p>
               )}
-              <button
-                type="button"
+              <div
+                role="button"
+                tabIndex={0}
                 onClick={() => chooseLine(seg)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    chooseLine(seg);
+                  }
+                }}
                 className={cn(
                   "grid w-full grid-cols-[auto_minmax(0,1fr)] gap-2 border-b border-border px-3 py-2.5 text-left transition-colors hover:bg-bg-selected/60",
                   activeSegment?.id === seg.id && "bg-bg-selected",
@@ -519,7 +526,7 @@ export function ReviewStep({
                     <span className="shrink-0">· {seg.manual ? "set by you" : `${Math.round(seg.confidence * 100)}%`}</span>
                   </div>
                 </div>
-              </button>
+              </div>
             </div>
           );
         })}
