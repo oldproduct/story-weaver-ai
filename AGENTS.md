@@ -11,3 +11,4 @@
 
 - Sign-in uses one shared login checked on the server with a signed HttpOnly cookie (SESSION_SECRET); every server function that spends ElevenLabs/AI quota calls requireSession() so the quota cannot be used without signing in.
 - Review line moves use the pure segment-edit helper, preserve delivery and clip identities, stay inside a chapter, and share the existing one-step undo; disable moves while filtering or editing to avoid swapping hidden neighbours or losing unsaved text.
+- Review editing uses a focused large editor beside the attributed-line list so long copy edits remain practical while preserving story context.
