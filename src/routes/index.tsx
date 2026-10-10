@@ -124,7 +124,7 @@ function Studio() {
         </div>
       </header>
 
-      <main className="mx-auto w-full max-w-5xl flex-1 px-6 py-10">
+      <main className={`mx-auto w-full flex-1 px-4 py-8 sm:px-6 sm:py-10 ${stage === "review" ? "max-w-7xl" : "max-w-5xl"}`}>
         {!hydrated ? (
           <div className="flex items-center justify-center py-20 text-[13px] text-subtle">
             Loading your workspace…

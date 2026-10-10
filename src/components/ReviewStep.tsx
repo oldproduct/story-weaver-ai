@@ -25,7 +25,6 @@ import { SUPPORTING_ID, type CharacterProfile, type EmotionType, type LineSpeed,
 
 type Filter = "all" | "uncertain";
 
-const PAGE = 150;
 const UNCERTAIN = 0.7;
 
 function confidenceBadge(seg: Segment) {
@@ -73,7 +72,6 @@ export function ReviewStep({
   const [filter, setFilter] = useState<Filter>("all");
   const [speakerFilter, setSpeakerFilter] = useState<string>("any");
   const [query, setQuery] = useState("");
-  const [limit, setLimit] = useState(PAGE);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [busy, setBusy] = useState(false);
 
@@ -81,6 +79,7 @@ export function ReviewStep({
     () => [...project.segments].sort((a, b) => a.order - b.order),
     [project.segments],
   );
+  const [activeId, setActiveId] = useState<string | null>(() => ordered[0]?.id ?? null);
   const chapterTitle = useMemo(
     () => new Map(project.chapters.map((c) => [c.id, c.title])),
     [project.chapters],
@@ -98,8 +97,8 @@ export function ReviewStep({
     });
   }, [ordered, filter, speakerFilter, query]);
 
-  const shown = visible.slice(0, limit);
   const orderIndex = useMemo(() => new Map(ordered.map((s, i) => [s.id, i])), [ordered]);
+  const activeSegment = visible.find((s) => s.id === activeId) ?? visible[0] ?? null;
 
   const applySegments = (fn: (segments: Segment[]) => Segment[]) => {
     updateProject((p) => {
@@ -127,16 +126,32 @@ export function ReviewStep({
     toast.message("Last change undone.");
   };
   const startEdit = (seg: Segment) => {
+    setActiveId(seg.id);
     setEditingId(seg.id);
     setEditText(seg.text);
   };
-  const saveEdit = () => {
+  const persistEdit = () => {
     if (!editingId) return;
     const current = project.segments.find((s) => s.id === editingId);
     if (current && editText.trim() && editText !== current.text) {
       applyEdit(editSegmentText(project.segments, editingId, editText, project.characters));
     }
+  };
+  const saveEdit = () => {
+    persistEdit();
     setEditingId(null);
+  };
+  const chooseLine = (seg: Segment) => {
+    if (seg.id === activeSegment?.id) return;
+    const current = project.segments.find((s) => s.id === editingId);
+    const hasUnsaved = Boolean(current && editText.trim() && editText !== current.text);
+    if (hasUnsaved) {
+      const saveFirst = window.confirm("Save your changes before opening another line? Select Cancel to choose whether to discard them.");
+      if (saveFirst) persistEdit();
+      else if (!window.confirm("Discard the unsaved changes to this line?")) return;
+    }
+    setEditingId(null);
+    setActiveId(seg.id);
   };
   const splitHere = () => {
     if (!editingId) return;
@@ -152,6 +167,11 @@ export function ReviewStep({
   const removeLine = (id: string) => {
     const snap = project.segments;
     applyEdit(deleteSegment(project.segments, id));
+    if (activeId === id) {
+      const index = orderIndex.get(id) ?? 0;
+      setActiveId(ordered[index + 1]?.id ?? ordered[index - 1]?.id ?? null);
+      setEditingId(null);
+    }
     toast("Line deleted", {
       duration: 5000,
       action: { label: "Undo", onClick: () => { setUndoSnapshot(null); applySegments(() => snap); } },
@@ -345,12 +365,21 @@ export function ReviewStep({
         <StepHint>Check low-confidence lines, fix the speaker, emotion or speed where needed, press play to test a line, then click Generate.</StepHint>
       </div>
 
-      <section aria-label="Document preparation reminders" className="border-y border-border py-3 text-[12px] leading-relaxed text-default">
-        <h3 className="mb-1.5 font-medium text-strong">Document guide · 3 quick reminders</h3>
-        <ol className="list-decimal space-y-1.5 pl-5">
-          <li><strong>Pauses & chapters:</strong> In your uploaded file, leave an empty line between paragraphs; put <code>अध्याय 1</code> or <code>Chapter 1</code> on its own line for a chapter break. Here, correct commas and full stops (<code>।</code>) in the line text; a blank line in an edit does not create a new chapter.</li>
-          <li><strong>Who speaks:</strong> In your file, quotes, <code>रोहन: नमस्ते!</code> and a starting dash (<code>—</code>) mark dialogue; text outside quotes is narration. Here, choose the speaker from the line’s menu, or type <code>(voice: Riya)</code> while editing—use an existing speaker’s exact name. The tag is not spoken.</li>
-          <li><strong>Cleanup & final order:</strong> Upload cleanup spells out short forms and numbers, fixes broken words and removes page clutter; <code>[हँसते हुए]</code> sets an emotion. Here, check the cleaned words, choose the emotion, edit or combine neighbouring lines, and use ↑ / ↓ within a chapter. Clear filters to move lines; Generate follows your saved text and order.</li>
+      <section aria-label="How the app reads voices, paragraphs and markers" className="border-y border-border py-4 text-[12px] leading-relaxed text-default">
+        <h3 className="mb-3 text-[14px] font-medium text-strong">How the app reads voices, paragraphs and markers</h3>
+        <ol className="grid gap-4 pl-5 md:grid-cols-3">
+          <li className="pl-1">
+            <strong className="block text-strong">Change voice / choose who speaks</strong>
+            Use <code>(voice: Riya)</code>, <code>Riya: text</code>, quotes, or <code>— dialogue</code> in the uploaded file. Here, choose the speaker or type <code>(voice: Riya)</code> while editing. The name must exactly match the Speakers screen; the tag is never spoken.
+          </li>
+          <li className="pl-1">
+            <strong className="block text-strong">Create a pause or chapter</strong>
+            One empty line in the uploaded file makes a paragraph pause. <code>अध्याय 1</code> or <code>Chapter 1</code> on its own line makes a chapter. Inside speech, use <code>,</code> short pause · <code>। .</code> full stop · <code>? !</code> emphasis · <code>…</code> longer pause. In this editor, use Split—not a blank line—to make separate attributed lines.
+          </li>
+          <li className="pl-1">
+            <strong className="block text-strong">Correct the final narration</strong>
+            Edit or paste the words, assign the speaker, choose emotion and speed, then Play to check. Split, combine, or move lines with ↑ / ↓. Generate follows your saved text, speaker, and order; unchanged recordings can still be reused.
+          </li>
         </ol>
       </section>
 
@@ -448,150 +477,135 @@ export function ReviewStep({
         </div>
       )}
 
-      <div className="space-y-2">
-        {shown.map((seg, i) => {
-          const prev = shown[i - 1];
+      <div className="grid min-h-[38rem] overflow-hidden rounded-lg border border-border bg-card shadow-xs lg:grid-cols-[minmax(17rem,0.78fr)_minmax(0,2.22fr)]">
+        <aside aria-label="Attributed lines" className="min-w-0 border-b border-border bg-muted/35 lg:border-b-0 lg:border-r">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2 border-b border-border px-3 py-2.5">
+            <div className="min-w-0">
+              <h3 className="truncate text-[12px] font-medium text-strong">Attributed lines</h3>
+              <p className="text-[10px] text-subtle">{visible.length} shown in story order</p>
+            </div>
+            <span className="shrink-0 font-mono text-[10px] text-subtle">{ordered.length} total</span>
+          </div>
+          <div className="max-h-[24rem] overflow-y-auto lg:max-h-[48rem]">
+        {visible.map((seg, i) => {
+          const prev = visible[i - 1];
           const newChapter = !prev || prev.chapterId !== seg.chapterId;
-          const index = orderIndex.get(seg.id) ?? -1;
-          const above = ordered[index - 1];
-          const below = ordered[index + 1];
           return (
             <div key={seg.id}>
               {newChapter && (
-                <p className="mb-2 mt-5 text-[12px] font-medium uppercase tracking-wider text-subtle">
+                <p className="border-y border-border bg-bg-selected/60 px-3 py-1.5 text-[10px] font-medium uppercase text-subtle first:border-t-0">
                   {chapterTitle.get(seg.chapterId) ?? "Chapter"}
                 </p>
               )}
               <div
+                role="button"
+                tabIndex={0}
+                onClick={() => chooseLine(seg)}
+                onKeyDown={(event) => {
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    chooseLine(seg);
+                  }
+                }}
                 className={cn(
-                  "flex flex-wrap items-start gap-3 rounded-lg border border-border bg-card p-3 text-[13px] shadow-2xs transition-all hover:border-default/30",
-                  !isSettled(seg) && "border-amber-200/60 bg-amber-50/20",
+                  "grid w-full grid-cols-[auto_minmax(0,1fr)] gap-2 border-b border-border px-3 py-2.5 text-left transition-colors hover:bg-bg-selected/60",
+                  activeSegment?.id === seg.id && "bg-bg-selected",
                 )}
               >
                 <Checkbox
-                  className="mt-1"
+                  className="mt-0.5"
                   checked={selected.has(seg.id)}
+                  onClick={(event) => event.stopPropagation()}
                   onCheckedChange={() => toggle(seg.id)}
                   aria-label="Select line"
                 />
-                <div className="min-w-[14rem] flex-1">
-                  {editingId === seg.id ? (
-                    <div className="space-y-2">
-                      <Textarea
-                        ref={editRef}
-                        autoFocus
-                        value={editText}
-                        onChange={(e) => setEditText(e.target.value)}
-                        onKeyDown={(e) => {
-                          if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); saveEdit(); }
-                          if (e.key === "Escape") setEditingId(null);
-                        }}
-                        className="min-h-20 text-[13px]"
-                        aria-label="Edit line text"
-                      />
-                      <div className="flex flex-wrap items-center gap-2">
-                        <Button size="sm" className="h-7 text-[11px]" onClick={saveEdit}>Save</Button>
-                        <Button size="sm" variant="ghost" className="h-7 text-[11px]" onClick={() => setEditingId(null)}>Cancel</Button>
-                        <Button size="sm" variant="secondary" className="h-7 text-[11px]" onClick={splitHere}>
-                          <Scissors className="size-3" />
-                          Split here
-                        </Button>
-                        <HelpTip title="Editing a line">Enter saves, Esc cancels. To cut this line in two, click where you want the cut and press Split here. Typing (voice: Name) at the start switches the speaker.</HelpTip>
-                      </div>
-                    </div>
-                  ) : (
-                    <p className="text-[13px] leading-relaxed text-strong" onDoubleClick={() => startEdit(seg)}>
-                      {seg.kind === "dialogue" ? `“${seg.text}”` : seg.text}
-                    </p>
-                  )}
-                  <div className="mt-1.5 flex items-center gap-2">
-                    {confidenceBadge(seg)}
-                    {seg.edited && <span className="text-[10px] font-medium text-subtle">edited</span>}
-                    <span className="font-mono text-[11px] text-subtle">
-                      {seg.kind === "dialogue" ? "dialogue quote" : "narration"}
-                    </span>
+                <div className="min-w-0">
+                  <p className="line-clamp-2 text-[11px] leading-relaxed text-strong">{seg.text}</p>
+                  <div className="mt-1 flex min-w-0 items-center gap-1.5 text-[9px] text-subtle">
+                    <span className="truncate">{speakerName(seg.speakerId, project.characters)}</span>
+                    <span className="shrink-0">· {seg.manual ? "set by you" : `${Math.round(seg.confidence * 100)}%`}</span>
                   </div>
                 </div>
-                <Select
-                  value={seg.speakerId ?? ""}
-                  onValueChange={(v) => (v === "__new" ? addSpeaker([seg.id]) : setSpeaker([seg.id], v))}
-                >
-                  <SelectTrigger className="h-8 w-48 text-[12px]">
-                    <SelectValue placeholder="Choose speaker" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {options.map((c) => (
-                      <SelectItem key={c.id} value={c.id}>
-                        {c.name}
-                      </SelectItem>
-                    ))}
-                    <SelectItem value="__new">New speaker…</SelectItem>
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={seg.emotion ?? "neutral"}
-                  onValueChange={(v) => setDelivery(seg.id, { emotion: v as EmotionType })}
-                >
-                  <SelectTrigger className="h-8 w-28 text-[12px] capitalize" aria-label="Emotion">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {EMOTIONS.map((e) => (
-                      <SelectItem key={e} value={e} className="capitalize">
-                        {e}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Select
-                  value={String(lineSpeedValue(seg.speed))}
-                  onValueChange={(v) => setDelivery(seg.id, { speed: Number(v) })}
-                >
-                  <SelectTrigger className="h-8 w-20 text-[12px]" aria-label="Line speed">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {LINE_SPEEDS.map((v) => (
-                      <SelectItem key={v} value={String(v)}>
-                        {v === 1 ? "1x" : `${v.toFixed(2)}x`}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <Button
-                  variant="secondary"
-                  size="icon"
-                  className="h-8 w-8"
-                  aria-label="Play line"
-                  disabled={playingId === seg.id}
-                  onClick={() => playLine(seg)}
-                >
-                  {playingId === seg.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Play className="h-3.5 w-3.5" />}
-                </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Edit line" onClick={() => startEdit(seg)}>
-                  <Pencil className="h-3.5 w-3.5" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Move line up" title="Move line up · same chapter, all lines visible" disabled={!canReorder || above?.chapterId !== seg.chapterId} onClick={() => moveLine(seg.id, "up")}>
-                  <ArrowUp className="size-3.5" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Move line down" title="Move line down · same chapter, all lines visible" disabled={!canReorder || below?.chapterId !== seg.chapterId} onClick={() => moveLine(seg.id, "down")}>
-                  <ArrowDown className="size-3.5" />
-                </Button>
-                <Button variant="ghost" size="icon" className="h-8 w-8" aria-label="Delete line" onClick={() => removeLine(seg.id)}>
-                  <Trash2 className="h-3.5 w-3.5" />
-                </Button>
               </div>
             </div>
           );
         })}
-        {shown.length === 0 && (
-          <p className="text-[13px] text-subtle">No lines match this filter.</p>
+        {visible.length === 0 && (
+          <p className="p-4 text-[12px] text-subtle">No lines match this filter.</p>
         )}
-        {visible.length > shown.length && (
-          <Button variant="secondary" size="sm" className="w-full h-8 text-[12px]" onClick={() => setLimit(limit + PAGE)}>
-            Show more ({visible.length - shown.length} left)
-          </Button>
-        )}
+          </div>
+        </aside>
+
+        <section aria-label="Selected line editor" className="min-w-0 p-4 sm:p-5">
+          {activeSegment ? (() => {
+            const seg = activeSegment;
+            const index = orderIndex.get(seg.id) ?? -1;
+            const above = ordered[index - 1];
+            const below = ordered[index + 1];
+            const isEditing = editingId === seg.id;
+            return (
+              <div className="space-y-5">
+                <div className="grid grid-cols-[minmax(0,1fr)_auto] items-start gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-[11px] font-medium uppercase text-subtle">{chapterTitle.get(seg.chapterId) ?? "Chapter"} · Line {index + 1}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">{confidenceBadge(seg)}{seg.edited && <span className="text-[10px] text-subtle">edited</span>}</div>
+                  </div>
+                  <Button variant="ghost" size="icon" className="h-8 w-8 shrink-0" aria-label="Undo last change" onClick={undo} disabled={!undoSnapshot}><Undo2 className="size-3.5" /></Button>
+                </div>
+
+                {isEditing ? (
+                  <div className="space-y-3">
+                    <Textarea
+                      ref={editRef}
+                      autoFocus
+                      value={editText}
+                      onChange={(e) => setEditText(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && (e.ctrlKey || e.metaKey)) { e.preventDefault(); saveEdit(); }
+                        if (e.key === "Escape") { setEditingId(null); setEditText(seg.text); }
+                      }}
+                      className="min-h-[22rem] resize-y text-[15px] leading-7"
+                      aria-label="Edit line text"
+                    />
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button size="sm" onClick={saveEdit}>Save changes</Button>
+                      <Button size="sm" variant="ghost" onClick={() => { setEditingId(null); setEditText(seg.text); }}>Cancel</Button>
+                      <Button size="sm" variant="secondary" onClick={splitHere}><Scissors className="size-3.5" />Split at cursor</Button>
+                      <HelpTip title="Large line editor">Enter makes a new line. Ctrl/Command + Enter saves. Esc cancels. Put the cursor inside the text and choose Split at cursor to create two attributed lines.</HelpTip>
+                    </div>
+                  </div>
+                ) : (
+                  <button type="button" onDoubleClick={() => startEdit(seg)} onClick={() => startEdit(seg)} className="min-h-[22rem] w-full border-y border-border py-5 text-left text-[15px] leading-7 text-strong">
+                    {seg.text}
+                  </button>
+                )}
+
+                <div className="grid gap-3 sm:grid-cols-3">
+                  <Select value={seg.speakerId ?? ""} onValueChange={(v) => (v === "__new" ? addSpeaker([seg.id]) : setSpeaker([seg.id], v))}>
+                    <SelectTrigger className="w-full text-[12px]"><SelectValue placeholder="Choose speaker" /></SelectTrigger>
+                    <SelectContent>{options.map((c) => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}<SelectItem value="__new">New speaker…</SelectItem></SelectContent>
+                  </Select>
+                  <Select value={seg.emotion ?? "neutral"} onValueChange={(v) => setDelivery(seg.id, { emotion: v as EmotionType })}>
+                    <SelectTrigger className="w-full text-[12px] capitalize" aria-label="Emotion"><SelectValue /></SelectTrigger>
+                    <SelectContent>{EMOTIONS.map((e) => <SelectItem key={e} value={e} className="capitalize">{e}</SelectItem>)}</SelectContent>
+                  </Select>
+                  <Select value={String(lineSpeedValue(seg.speed))} onValueChange={(v) => setDelivery(seg.id, { speed: Number(v) })}>
+                    <SelectTrigger className="w-full text-[12px]" aria-label="Line speed"><SelectValue /></SelectTrigger>
+                    <SelectContent>{LINE_SPEEDS.map((v) => <SelectItem key={v} value={String(v)}>{v === 1 ? "1x" : `${v.toFixed(2)}x`}</SelectItem>)}</SelectContent>
+                  </Select>
+                </div>
+
+                <div className="flex flex-wrap items-center gap-2 border-t border-border pt-4">
+                  <Button variant="secondary" size="sm" disabled={playingId === seg.id} onClick={() => playLine(seg)}>{playingId === seg.id ? <Loader2 className="size-3.5 animate-spin" /> : <Play className="size-3.5" />}Play line</Button>
+                  {!isEditing && <Button variant="secondary" size="sm" onClick={() => startEdit(seg)}><Pencil className="size-3.5" />Edit text</Button>}
+                  <Button variant="ghost" size="icon" aria-label="Move line up" title="Move line up" disabled={!canReorder || above?.chapterId !== seg.chapterId} onClick={() => moveLine(seg.id, "up")}><ArrowUp className="size-4" /></Button>
+                  <Button variant="ghost" size="icon" aria-label="Move line down" title="Move line down" disabled={!canReorder || below?.chapterId !== seg.chapterId} onClick={() => moveLine(seg.id, "down")}><ArrowDown className="size-4" /></Button>
+                  <Button variant="ghost" size="icon" className="ml-auto" aria-label="Delete line" onClick={() => removeLine(seg.id)}><Trash2 className="size-4" /></Button>
+                </div>
+              </div>
+            );
+          })() : <p className="text-[13px] text-subtle">Choose a line from the list.</p>}
+        </section>
       </div>
 
       <div className="flex flex-wrap gap-3">

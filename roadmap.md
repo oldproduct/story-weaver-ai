@@ -1,3 +1,6 @@
 - [x] Add same-chapter up/down line moves with undo and saved playback order.
 - [x] Add three short preparation reminders above Review lines.
 - [x] Test line movement and verify the signed-in Review screen.
+- [x] Build a large two-pane Review editor with every attributed line visible.
+- [x] Rewrite Review guidance around voice markers, paragraph pauses, and symbols.
+- [x] Verify long edits, unsaved-change handling, and responsive layouts.
